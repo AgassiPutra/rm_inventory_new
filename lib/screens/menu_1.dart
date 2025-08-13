@@ -66,7 +66,7 @@ class _Menu1PageState extends State<Menu1Page> {
       }
     });
 
-    await FlutterBluePlus.startScan(timeout: Duration(seconds: 4));
+    await FlutterBluePlus.startScan(timeout: Duration(seconds: 20));
     await Future.delayed(Duration(seconds: 4));
     await FlutterBluePlus.stopScan();
     await subscription.cancel();
