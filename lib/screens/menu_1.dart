@@ -46,17 +46,44 @@ class _Menu1PageState extends State<Menu1Page> {
     onPicked(image);
   }
 
+  Future<bool> requestBluetoothPermissions() async {
+    var locationStatus = await Permission.location.status;
+    if (!locationStatus.isGranted) {
+      locationStatus = await Permission.location.request();
+      if (!locationStatus.isGranted) return false;
+    }
+
+    var scanStatus = await Permission.bluetoothScan.status;
+    if (!scanStatus.isGranted) {
+      scanStatus = await Permission.bluetoothScan.request();
+      if (!scanStatus.isGranted) return false;
+    }
+
+    var connectStatus = await Permission.bluetoothConnect.status;
+    if (!connectStatus.isGranted) {
+      connectStatus = await Permission.bluetoothConnect.request();
+      if (!connectStatus.isGranted) return false;
+    }
+
+    return true;
+  }
+
   Future<void> scanForDevices() async {
-    await Permission.location.request();
-    await Permission.bluetoothScan.request();
-    await Permission.bluetoothConnect.request();
+    bool granted = await requestBluetoothPermissions();
+    if (!granted) {
+      setState(() {
+        bluetoothStatus = "Permissions denied";
+      });
+      return;
+    }
 
     setState(() {
       foundDevices.clear();
       bluetoothStatus = "Scanning...";
     });
 
-    final subscription = FlutterBluePlus.onScanResults.listen((results) {
+    // Subscribe dulu ke scan results sebelum startScan
+    final subscription = FlutterBluePlus.scanResults.listen((results) {
       for (ScanResult r in results) {
         if (!foundDevices.any((d) => d.id == r.device.id)) {
           setState(() {
@@ -66,9 +93,9 @@ class _Menu1PageState extends State<Menu1Page> {
       }
     });
 
-    await FlutterBluePlus.startScan(timeout: Duration(seconds: 20));
-    await Future.delayed(Duration(seconds: 4));
-    await FlutterBluePlus.stopScan();
+    // Start scan dengan timeout, jangan stopScan manual biar tidak bentrok
+    await FlutterBluePlus.startScan(timeout: Duration(seconds: 5));
+
     await subscription.cancel();
 
     setState(() {
@@ -81,11 +108,24 @@ class _Menu1PageState extends State<Menu1Page> {
   }
 
   Future<void> connectToDevice(BluetoothDevice device) async {
-    await device.connect();
-    setState(() {
-      connectedDevice = device;
-      bluetoothStatus = "Connected to ${device.name}";
-    });
+    try {
+      await device.connect(timeout: Duration(seconds: 10));
+      setState(() {
+        connectedDevice = device;
+        bluetoothStatus = "Connected to ${device.name}";
+      });
+    } catch (e) {
+      if (e.toString().contains('already connected')) {
+        setState(() {
+          connectedDevice = device;
+          bluetoothStatus = "Already connected to ${device.name}";
+        });
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal terhubung: $e')));
+      }
+    }
   }
 
   @override
