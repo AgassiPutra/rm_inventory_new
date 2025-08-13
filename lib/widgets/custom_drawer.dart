@@ -76,7 +76,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    nama.isNotEmpty ? nama : 'Nama User',
+                    nama.isNotEmpty ? nama : 'AdminCK2',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
