@@ -22,7 +22,7 @@ class _Menu3PageState extends State<Menu3Page> {
 
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return prefs.getString('auth_token');
   }
 
   Future<void> fetchSuppliers() async {
