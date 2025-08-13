@@ -20,6 +20,11 @@ class _Menu3PageState extends State<Menu3Page> {
     fetchSuppliers();
   }
 
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
   Future<void> fetchSuppliers() async {
     setState(() {
       isLoading = true;
@@ -29,7 +34,6 @@ class _Menu3PageState extends State<Menu3Page> {
     final token = await getToken() ?? '';
 
     if (token.isEmpty) {
-      // kalau token kosong, hapus data dan arahkan ke login
       await prefs.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -66,6 +70,108 @@ class _Menu3PageState extends State<Menu3Page> {
         context,
       ).showSnackBar(SnackBar(content: Text('Gagal memuat data supplier')));
     }
+  }
+
+  Future<void> showSupplierForm({Map<String, dynamic>? data}) async {
+    final TextEditingController supplierController = TextEditingController(
+      text: data?['supplier'] ?? '',
+    );
+    final TextEditingController pabrikController = TextEditingController(
+      text: data?['nama_pabrik'] ?? '',
+    );
+    final TextEditingController jenisController = TextEditingController(
+      text: data?['jenis_rm'] ?? '',
+    );
+
+    bool isEdit = data != null;
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(isEdit ? 'Edit Supplier' : 'Tambah Supplier'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: supplierController,
+              decoration: InputDecoration(labelText: 'Supplier'),
+            ),
+            TextField(
+              controller: pabrikController,
+              decoration: InputDecoration(labelText: 'Produsen'),
+            ),
+            TextField(
+              controller: jenisController,
+              decoration: InputDecoration(labelText: 'Jenis RM'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: Text('Batal'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: Text('Simpan'),
+            onPressed: () async {
+              final token = await getToken() ?? '';
+              if (token.isEmpty) return;
+
+              final body = {
+                'supplier': supplierController.text,
+                'nama_pabrik': pabrikController.text,
+                'jenis_rm': jenisController.text,
+              };
+
+              http.Response res;
+              if (isEdit) {
+                res = await http.put(
+                  Uri.parse(
+                    'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier/${data!['id']}',
+                  ),
+                  headers: {
+                    'Authorization': 'Bearer $token',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode(body),
+                );
+              } else {
+                res = await http.post(
+                  Uri.parse(
+                    'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier',
+                  ),
+                  headers: {
+                    'Authorization': 'Bearer $token',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode(body),
+                );
+              }
+
+              if (res.statusCode == 200 || res.statusCode == 201) {
+                Navigator.pop(context);
+                fetchSuppliers();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isEdit
+                          ? 'Data berhasil diubah'
+                          : 'Data berhasil ditambahkan',
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Gagal menyimpan data')));
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -114,7 +220,9 @@ class _Menu3PageState extends State<Menu3Page> {
                                     children: [
                                       IconButton(
                                         icon: Icon(Icons.edit, size: 18),
-                                        onPressed: () {},
+                                        onPressed: () {
+                                          showSupplierForm(data: data);
+                                        },
                                       ),
                                       IconButton(
                                         icon: Icon(
@@ -140,7 +248,9 @@ class _Menu3PageState extends State<Menu3Page> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.purple[100],
         child: Icon(Icons.add, color: Colors.purple),
-        onPressed: () {},
+        onPressed: () {
+          showSupplierForm();
+        },
       ),
     );
   }
