@@ -3,6 +3,9 @@ import '../widgets/custom_drawer.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Menu1Page extends StatefulWidget {
   @override
@@ -10,9 +13,19 @@ class Menu1Page extends StatefulWidget {
 }
 
 class _Menu1PageState extends State<Menu1Page> {
+  bool isLoadingSuppliers = false;
   late String currentTime;
   late TextEditingController currentTimeController;
   late TextEditingController shiftController;
+  late TextEditingController produsenController;
+  TextEditingController qtyPoController = TextEditingController();
+  List<Map<String, dynamic>> suppliers = [];
+
+  String? selectedUnit;
+  String? selectedJenisRm;
+  String? selectedSupplier;
+  String qtyPo = '';
+  String produsen = '';
 
   final ImagePicker _picker = ImagePicker();
 
@@ -32,12 +45,17 @@ class _Menu1PageState extends State<Menu1Page> {
         "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
     currentTimeController = TextEditingController(text: currentTime);
     shiftController = TextEditingController(text: 'Shift 2');
+    qtyPoController = TextEditingController();
+    produsenController = TextEditingController();
+    fetchSuppliers();
   }
 
   @override
   void dispose() {
     currentTimeController.dispose();
     shiftController.dispose();
+    qtyPoController.dispose();
+    produsenController.dispose();
     super.dispose();
   }
 
@@ -81,8 +99,6 @@ class _Menu1PageState extends State<Menu1Page> {
       foundDevices.clear();
       bluetoothStatus = "Scanning...";
     });
-
-    // Subscribe dulu ke scan results sebelum startScan
     final subscription = FlutterBluePlus.scanResults.listen((results) {
       for (ScanResult r in results) {
         if (!foundDevices.any((d) => d.id == r.device.id)) {
@@ -92,8 +108,6 @@ class _Menu1PageState extends State<Menu1Page> {
         }
       }
     });
-
-    // Start scan dengan timeout, jangan stopScan manual biar tidak bentrok
     await FlutterBluePlus.startScan(timeout: Duration(seconds: 5));
 
     await subscription.cancel();
@@ -125,6 +139,115 @@ class _Menu1PageState extends State<Menu1Page> {
           context,
         ).showSnackBar(SnackBar(content: Text('Gagal terhubung: $e')));
       }
+    }
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    print('Token from SharedPreferences: $token');
+    return token;
+  }
+
+  Future<void> fetchSuppliers() async {
+    final token = await getToken();
+    print(
+      'Token dari SharedPreferences: $token',
+    ); // <-- taruh di sini untuk debug token
+
+    if (token == null || token.isEmpty) {
+      print('Token tidak ditemukan, user harus login');
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final List<dynamic> data = body['data'];
+
+      setState(() {
+        suppliers = data.map<Map<String, dynamic>>((item) {
+          return {
+            'supplier': item['supplier'],
+            'produsen': item['nama_pabrik'],
+          };
+        }).toList();
+      });
+    } else {
+      print('Failed to load suppliers: ${response.statusCode}');
+      print('Response body: ${response.body}');
+    }
+  }
+
+  Future<void> submitData() async {
+    final token = await getToken();
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Token tidak ditemukan. Silakan login ulang.')),
+      );
+      return;
+    }
+
+    // Set qtyPo from controller
+    final qtyPo = qtyPoController.text;
+
+    // Basic validation
+    if (selectedUnit == null ||
+        selectedJenisRm == null ||
+        qtyPo.isEmpty ||
+        selectedSupplier == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Harap lengkapi semua field')));
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm',
+    );
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer $token'
+      ..fields['unit'] = selectedUnit!
+      ..fields['jenis_rm'] = selectedJenisRm!
+      ..fields['qty_po'] = qtyPo
+      ..fields['supplier'] = selectedSupplier!
+      ..fields['produsen'] = produsen;
+
+    if (invoiceFile != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'invoice_supplier', // <-- ganti key-nya di sini
+          invoiceFile!.path,
+          filename: invoiceFile!.path.split('/').last,
+        ),
+      );
+    }
+
+    if (suratJalanFile != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'surat_jalan',
+          suratJalanFile!.path,
+          filename: suratJalanFile!.path.split('/').last,
+        ),
+      );
+    }
+
+    final response = await request.send();
+    final resBody = await response.stream.bytesToString();
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Data berhasil dikirim')));
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal kirim: $resBody')));
     }
   }
 
@@ -297,7 +420,11 @@ class _Menu1PageState extends State<Menu1Page> {
                 'CK2',
                 'CK3',
               ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: (v) {},
+              onChanged: (v) {
+                setState(() {
+                  selectedUnit = v;
+                });
+              },
             ),
             SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -306,44 +433,82 @@ class _Menu1PageState extends State<Menu1Page> {
                 border: OutlineInputBorder(),
               ),
               items: [
-                'Wet Chicken Dada',
-                'Wet Chicken Paha',
+                'Wet Chicken',
                 'Sayuran',
                 'Dry',
                 'Ice',
               ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: (v) {},
+              onChanged: (v) {
+                setState(() {
+                  selectedJenisRm = v;
+                });
+              },
             ),
             SizedBox(height: 12),
             TextFormField(
+              controller: qtyPoController,
+              keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Qty PO',
                 border: OutlineInputBorder(),
               ),
             ),
             SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Supplier',
-                border: OutlineInputBorder(),
-              ),
-              items: [],
-              onChanged: (v) {},
-            ),
+            isLoadingSuppliers
+                ? Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: 'Supplier',
+                      border: OutlineInputBorder(),
+                    ),
+                    value:
+                        suppliers.any(
+                          (item) => item['supplier'] == selectedSupplier,
+                        )
+                        ? selectedSupplier
+                        : null,
+                    hint: Text('Pilih Supplier'),
+                    items: suppliers
+                        .map(
+                          (item) => DropdownMenuItem<String>(
+                            value: item['supplier'],
+                            child: Text(item['supplier']),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      print('Supplier selected: $value');
+                      setState(() {
+                        selectedSupplier = value;
+                        final selected = suppliers.firstWhere(
+                          (item) => item['supplier'] == value,
+                          orElse: () => {'produsen': ''},
+                        );
+                        produsen = selected['produsen'];
+                        produsenController.text = produsen;
+                        print('Produsen updated: $produsen');
+                      });
+                    },
+                  ),
+
             SizedBox(height: 12),
             TextFormField(
+              controller: produsenController,
+              enabled: false,
               decoration: InputDecoration(
                 labelText: 'Produsen',
                 border: OutlineInputBorder(),
                 filled: true,
                 fillColor: Colors.grey[200],
               ),
-              enabled: false,
             ),
+
             SizedBox(height: 24),
             Center(
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  submitData();
+                },
                 child: Text('Submit'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey,

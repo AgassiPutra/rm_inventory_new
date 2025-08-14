@@ -1,86 +1,125 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_drawer.dart';
 
-class Menu2Page extends StatelessWidget {
-  final List<Map<String, String>> data = [
-    {
-      'faktur': '6NP4U',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'CV. Wahana Sejahtera',
-      'date': '04 Aug 2025, 12:41',
-    },
-    {
-      'faktur': 'CJJPL',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'CV. Wahana Sejahtera',
-      'date': '04 Aug 2025, 12:13',
-    },
-    {
-      'faktur': '6JZZ7',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'CV. Wahana Sejahtera',
-      'date': '04 Aug 2025, 11:59',
-    },
-    {
-      'faktur': 'DSE4J',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'Restu jaya',
-      'date': '31 Jul 2025, 19:27',
-    },
-    {
-      'faktur': '3YEF8',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'Restu jaya',
-      'date': '31 Jul 2025, 19:19',
-    },
-    {
-      'faktur': 'E2T0Z',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'Restu jaya',
-      'date': '31 Jul 2025, 19:15',
-    },
-    {
-      'faktur': 'JM8RN',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'Restu jaya',
-      'date': '31 Jul 2025, 19:13',
-    },
-    {
-      'faktur': 'JVDMR',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'PT. Janu Putra',
-      'date': '26 Jul 2025, 14:49',
-    },
-    {
-      'faktur': 'G36TY',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'CV. Wahana Sejahtera',
-      'date': '23 Jul 2025, 22:34',
-    },
-    {
-      'faktur': 'VD452',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'PT. Janu Putra',
-      'date': '23 Jul 2025, 17:20',
-    },
-    {
-      'faktur': 'LS2QS',
-      'unit': 'CK 2',
-      'type': 'Wet Chicken',
-      'supplier': 'Restu jaya',
-      'date': '23 Jul 2025, 14:40',
-    },
-  ];
+class Menu2Page extends StatefulWidget {
+  @override
+  _Menu2PageState createState() => _Menu2PageState();
+}
+
+class _Menu2PageState extends State<Menu2Page> {
+  final fakturController = TextEditingController();
+  final unitController = TextEditingController();
+  final typeController = TextEditingController();
+  final supplierController = TextEditingController();
+
+  List<Map<String, dynamic>> data = [];
+  late List<Map<String, dynamic>> filteredData = [];
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchIncomingRM();
+    filteredData = List.from(data);
+  }
+
+  @override
+  void dispose() {
+    fakturController.dispose();
+    unitController.dispose();
+    typeController.dispose();
+    supplierController.dispose();
+    super.dispose();
+  }
+
+  // Apply filter based on available fields
+  void applyFilter() {
+    final faktur = fakturController.text.trim().toLowerCase();
+    final unit = unitController.text.trim().toLowerCase();
+    final type = typeController.text.trim().toLowerCase();
+    final supplier = supplierController.text.trim().toLowerCase();
+
+    setState(() {
+      filteredData = data.where((row) {
+        final fakturMatch =
+            faktur.isEmpty || row['faktur']!.toLowerCase().contains(faktur);
+        final unitMatch =
+            unit.isEmpty || row['unit']!.toLowerCase().contains(unit);
+        final typeMatch =
+            type.isEmpty || row['type']!.toLowerCase().contains(type);
+        final supplierMatch =
+            supplier.isEmpty ||
+            row['supplier']!.toLowerCase().contains(supplier);
+
+        return fakturMatch && unitMatch && typeMatch && supplierMatch;
+      }).toList();
+    });
+  }
+
+  // Clear the filter fields and reset the filteredData
+  void clearFilter() {
+    fakturController.clear();
+    unitController.clear();
+    typeController.clear();
+    supplierController.clear();
+
+    setState(() {
+      filteredData = List.from(data);
+    });
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
+
+  Future<void> fetchIncomingRM() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final token = await getToken();
+      final response = await http.get(
+        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        final List<dynamic> items = jsonData['data'];
+
+        setState(() {
+          data = items.map((item) {
+            return {
+              'faktur': item['faktur'] ?? '',
+              'unit': item['unit'] ?? '',
+              'type': item['jenis_rm'] ?? '',
+              'supplier': item['supplier'] ?? '',
+              'date': item['tanggal_incoming'] ?? '',
+            };
+          }).toList();
+        });
+      } else {
+        setState(() {
+          errorMessage = 'Gagal memuat data: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Terjadi kesalahan: $e';
+      });
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,17 +128,19 @@ class Menu2Page extends StatelessWidget {
         title: Text('Incoming Raw Materials'),
         actions: [
           IconButton(
-            icon: Icon(Icons.filter_alt_outlined),
-            onPressed: () {},
+            icon: Icon(Icons.filter_alt_outlined), // Ikon Filter
+            onPressed: () {
+              // Tampilkan dialog filter
+              _showFilterDialog();
+            },
           ),
           IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () {},
+            icon: Icon(Icons.refresh), // Ikon Refresh
+            onPressed: () {
+              clearFilter();
+            },
           ),
-          IconButton(
-            icon: Icon(Icons.person),
-            onPressed: () {},
-          ),
+          IconButton(icon: Icon(Icons.person), onPressed: () {}),
         ],
       ),
       drawer: CustomDrawer(),
@@ -117,64 +158,17 @@ class Menu2Page extends StatelessWidget {
                     headingRowColor: MaterialStateProperty.all(Colors.blue[50]),
                     columnSpacing: 24,
                     columns: [
-                      DataColumn(
-                        label: Row(
-                          children: [
-                            Text('Faktur'),
-                            Icon(Icons.swap_vert, size: 16, color: Colors.grey),
-                          ],
-                        ),
-                      ),
-                      DataColumn(
-                        label: Text('Unit'),
-                      ),
-                      DataColumn(
-                        label: Row(
-                          children: [
-                            Text('Type'),
-                            Icon(Icons.swap_vert, size: 16, color: Colors.grey),
-                          ],
-                        ),
-                      ),
-                      DataColumn(
-                        label: Row(
-                          children: [
-                            Text('Supplier'),
-                            Icon(Icons.swap_vert, size: 16, color: Colors.grey),
-                          ],
-                        ),
-                      ),
-                      DataColumn(
-                        label: Row(
-                          children: [
-                            Text('Date'),
-                            Icon(Icons.swap_vert, size: 16, color: Colors.grey),
-                          ],
-                        ),
-                      ),
+                      DataColumn(label: Text('Faktur')),
+                      DataColumn(label: Text('Unit')),
+                      DataColumn(label: Text('Type')),
+                      DataColumn(label: Text('Supplier')),
+                      DataColumn(label: Text('Date')),
                     ],
-                    rows: data.map((row) {
+                    rows: filteredData.map((row) {
                       return DataRow(
                         cells: [
                           DataCell(Text(row['faktur'] ?? '')),
-                          DataCell(
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                row['unit'] ?? '',
-                                style: TextStyle(
-                                  color: Colors.blue[900],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
+                          DataCell(Text(row['unit'] ?? '')),
                           DataCell(Text(row['type'] ?? '')),
                           DataCell(Text(row['supplier'] ?? '')),
                           DataCell(Text(row['date'] ?? '')),
@@ -187,6 +181,66 @@ class Menu2Page extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+
+  // Filter Dialog
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Filter Data'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: fakturController,
+                decoration: InputDecoration(
+                  labelText: 'Faktur',
+                  prefixIcon: Icon(Icons.receipt), // Icon Faktur
+                ),
+              ),
+              TextField(
+                controller: unitController,
+                decoration: InputDecoration(
+                  labelText: 'Unit',
+                  prefixIcon: Icon(Icons.home_work_outlined), // Icon Unit
+                ),
+              ),
+              TextField(
+                controller: typeController,
+                decoration: InputDecoration(
+                  labelText: 'Type',
+                  prefixIcon: Icon(Icons.category), // Icon Type
+                ),
+              ),
+              TextField(
+                controller: supplierController,
+                decoration: InputDecoration(
+                  labelText: 'Supplier',
+                  prefixIcon: Icon(Icons.local_shipping), // Icon Supplier
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              clearFilter();
+              Navigator.pop(context);
+            },
+            child: Text('Clear'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              applyFilter();
+              Navigator.pop(context);
+            },
+            child: Text('Apply'),
+          ),
+        ],
       ),
     );
   }
