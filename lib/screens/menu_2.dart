@@ -36,7 +36,6 @@ class _Menu2PageState extends State<Menu2Page> {
     super.dispose();
   }
 
-  // Apply filter based on available fields
   void applyFilter() {
     final faktur = fakturController.text.trim().toLowerCase();
     final unit = unitController.text.trim().toLowerCase();
@@ -60,7 +59,6 @@ class _Menu2PageState extends State<Menu2Page> {
     });
   }
 
-  // Clear the filter fields and reset the filteredData
   void clearFilter() {
     fakturController.clear();
     unitController.clear();
@@ -104,6 +102,9 @@ class _Menu2PageState extends State<Menu2Page> {
               'date': item['tanggal_incoming'] ?? '',
             };
           }).toList();
+
+          // Segera terapkan filter jika diperlukan
+          applyFilter();
         });
       } else {
         setState(() {
@@ -122,20 +123,20 @@ class _Menu2PageState extends State<Menu2Page> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Incoming Raw Materials'),
         actions: [
           IconButton(
-            icon: Icon(Icons.filter_alt_outlined), // Ikon Filter
+            icon: Icon(Icons.filter_alt_outlined),
             onPressed: () {
-              // Tampilkan dialog filter
               _showFilterDialog();
             },
           ),
           IconButton(
-            icon: Icon(Icons.refresh), // Ikon Refresh
+            icon: Icon(Icons.refresh),
             onPressed: () {
               clearFilter();
             },
@@ -154,28 +155,32 @@ class _Menu2PageState extends State<Menu2Page> {
                 scrollDirection: Axis.horizontal,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: DataTable(
-                    headingRowColor: MaterialStateProperty.all(Colors.blue[50]),
-                    columnSpacing: 24,
-                    columns: [
-                      DataColumn(label: Text('Faktur')),
-                      DataColumn(label: Text('Unit')),
-                      DataColumn(label: Text('Type')),
-                      DataColumn(label: Text('Supplier')),
-                      DataColumn(label: Text('Date')),
-                    ],
-                    rows: filteredData.map((row) {
-                      return DataRow(
-                        cells: [
-                          DataCell(Text(row['faktur'] ?? '')),
-                          DataCell(Text(row['unit'] ?? '')),
-                          DataCell(Text(row['type'] ?? '')),
-                          DataCell(Text(row['supplier'] ?? '')),
-                          DataCell(Text(row['date'] ?? '')),
-                        ],
-                      );
-                    }).toList(),
-                  ),
+                  child: isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : DataTable(
+                          headingRowColor: MaterialStateProperty.all(
+                            Colors.blue[50],
+                          ),
+                          columnSpacing: 24,
+                          columns: [
+                            DataColumn(label: Text('Faktur')),
+                            DataColumn(label: Text('Unit')),
+                            DataColumn(label: Text('Type')),
+                            DataColumn(label: Text('Supplier')),
+                            DataColumn(label: Text('Date')),
+                          ],
+                          rows: filteredData.map((row) {
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(row['faktur'] ?? '')),
+                                DataCell(Text(row['unit'] ?? '')),
+                                DataCell(Text(row['type'] ?? '')),
+                                DataCell(Text(row['supplier'] ?? '')),
+                                DataCell(Text(row['date'] ?? '')),
+                              ],
+                            );
+                          }).toList(),
+                        ),
                 ),
               ),
             );
@@ -185,7 +190,6 @@ class _Menu2PageState extends State<Menu2Page> {
     );
   }
 
-  // Filter Dialog
   void _showFilterDialog() {
     showDialog(
       context: context,
@@ -198,28 +202,28 @@ class _Menu2PageState extends State<Menu2Page> {
                 controller: fakturController,
                 decoration: InputDecoration(
                   labelText: 'Faktur',
-                  prefixIcon: Icon(Icons.receipt), // Icon Faktur
+                  prefixIcon: Icon(Icons.receipt),
                 ),
               ),
               TextField(
                 controller: unitController,
                 decoration: InputDecoration(
                   labelText: 'Unit',
-                  prefixIcon: Icon(Icons.home_work_outlined), // Icon Unit
+                  prefixIcon: Icon(Icons.home_work_outlined),
                 ),
               ),
               TextField(
                 controller: typeController,
                 decoration: InputDecoration(
                   labelText: 'Type',
-                  prefixIcon: Icon(Icons.category), // Icon Type
+                  prefixIcon: Icon(Icons.category),
                 ),
               ),
               TextField(
                 controller: supplierController,
                 decoration: InputDecoration(
                   labelText: 'Supplier',
-                  prefixIcon: Icon(Icons.local_shipping), // Icon Supplier
+                  prefixIcon: Icon(Icons.local_shipping),
                 ),
               ),
             ],
