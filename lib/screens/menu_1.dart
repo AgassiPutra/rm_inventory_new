@@ -151,9 +151,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
   Future<void> fetchSuppliers() async {
     final token = await getToken();
-    print(
-      'Token dari SharedPreferences: $token',
-    ); // <-- taruh di sini untuk debug token
+    print('Token dari SharedPreferences: $token');
 
     if (token == null || token.isEmpty) {
       print('Token tidak ditemukan, user harus login');
@@ -195,8 +193,6 @@ class _Menu1PageState extends State<Menu1Page> {
     }
 
     final qtyPo = qtyPoController.text;
-
-    // Basic validation
     if (selectedUnit == null ||
         selectedJenisRm == null ||
         qtyPo.isEmpty ||
@@ -247,8 +243,6 @@ class _Menu1PageState extends State<Menu1Page> {
 
       final fakturBaru = jsonRes['data']?['faktur'];
       debugPrint("✅ Faktur baru: $fakturBaru");
-
-      // === POST Timbangan ===
       final timbangUri = Uri.parse(
         'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
       );
@@ -267,8 +261,6 @@ class _Menu1PageState extends State<Menu1Page> {
       );
 
       debugPrint("Raw Response POST Timbangan: ${timbangResponse.body}");
-
-      // kalau POST Timbangan gagal → stop
       if (timbangResponse.statusCode != 200 &&
           timbangResponse.statusCode != 201) {
         debugPrint("❌ Gagal POST Timbangan, proses dihentikan.");
@@ -279,8 +271,6 @@ class _Menu1PageState extends State<Menu1Page> {
         );
         return;
       }
-
-      // === GET Timbangan ===
       final getUri = Uri.parse(
         'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
       );
@@ -315,8 +305,6 @@ class _Menu1PageState extends State<Menu1Page> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Data berhasil dikirim')));
-
-      // ✅ Reset form setelah submit sukses
       resetForm();
     } else {
       ScaffoldMessenger.of(

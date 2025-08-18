@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:csv/csv.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../models/incoming_data.dart';
 import '../widgets/custom_drawer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -24,68 +27,97 @@ class _DashboardPageState extends State<DashboardPage> {
 
   DateTime? startDate;
   DateTime? endDate;
-  late List<IncomingData> allData;
+  List<IncomingData> allData = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    allData = generateDummyData();
+    // Default filter tanggal ke hari ini
     startDate = DateTime.now();
     endDate = DateTime.now();
+    fetchDataFromAPI();
   }
 
-  List<IncomingData> generateDummyData() {
-    final now = DateTime.now();
-    return [
-      IncomingData(category: 'Wet Chicken Dada', quantity: 20, date: now),
-      IncomingData(category: 'Wet Chicken Paha', quantity: 35, date: now),
-      IncomingData(category: 'Sayuran', quantity: 50, date: now),
-      IncomingData(category: 'Udang', quantity: 40, date: now),
-      IncomingData(category: 'Dry', quantity: 15, date: now),
-      IncomingData(category: 'Ice', quantity: 60, date: now),
-      IncomingData(
-        category: 'Sayuran',
-        quantity: 25,
-        date: now.subtract(Duration(days: 1)),
-      ),
-      IncomingData(
-        category: 'Udang',
-        quantity: 10,
-        date: now.subtract(Duration(days: 2)),
-      ),
-      IncomingData(
-        category: 'Ice',
-        quantity: 100,
-        date: now.subtract(Duration(days: 3)),
-      ),
-    ];
+  Future<void> fetchDataFromAPI() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (token == null) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Token tidak ditemukan, silakan login ulang'),
+        ),
+      );
+      return;
+    }
+
+    const url = 'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        final List<dynamic> dataList = decoded['data'];
+
+        setState(() {
+          allData = dataList
+              .map((json) => IncomingData.fromJson(json))
+              .toList();
+          isLoading = false;
+        });
+      } else if (response.statusCode == 401) {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unauthorized: Token tidak valid atau expired'),
+          ),
+        );
+      } else {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengambil data: ${response.statusCode}'),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saat fetch data: $e')));
+    }
   }
 
   Future<void> exportToCSV(Map<String, int> totals) async {
     try {
-      // Header CSV
       List<List<dynamic>> rows = [
         ["Kategori", "Total (kg)"],
       ];
 
-      // Tambahkan data
       totals.forEach((category, total) {
         rows.add([category, total]);
       });
 
-      // Konversi ke string CSV
       String csvData = const ListToCsvConverter().convert(rows);
 
-      // Tentukan lokasi file
       final directory = await getApplicationDocumentsDirectory();
       final path =
           "${directory.path}/dashboard_incoming_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv";
 
-      // Simpan file
       final file = File(path);
       await file.writeAsString(csvData);
 
-      // Tampilkan notifikasi / snackbar
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -118,15 +150,22 @@ class _DashboardPageState extends State<DashboardPage> {
 
   List<IncomingData> getFilteredData() {
     return allData.where((data) {
-      return data.date.isAfter(startDate!.subtract(Duration(days: 1))) &&
-          data.date.isBefore(endDate!.add(Duration(days: 1)));
+      final tanggal = DateTime(
+        data.tanggalIncoming.year,
+        data.tanggalIncoming.month,
+        data.tanggalIncoming.day,
+      );
+      final start = DateTime(startDate!.year, startDate!.month, startDate!.day);
+      final end = DateTime(endDate!.year, endDate!.month, endDate!.day);
+      return (tanggal.isAtSameMomentAs(start) || tanggal.isAfter(start)) &&
+          (tanggal.isAtSameMomentAs(end) || tanggal.isBefore(end));
     }).toList();
   }
 
   Map<String, int> calculateTotalByCategory(List<IncomingData> dataList) {
     Map<String, int> totals = {};
     for (var data in dataList) {
-      totals[data.category] = (totals[data.category] ?? 0) + data.quantity;
+      totals[data.jenisRm] = (totals[data.jenisRm] ?? 0) + data.qtyIn.toInt();
     }
     return totals;
   }
@@ -153,85 +192,85 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
       drawer: CustomDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              'Tanggal: ${DateFormat('dd MMM yyyy').format(startDate!)} - ${DateFormat('dd MMM yyyy').format(endDate!)}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-
-            // ======== CHART ========
-            SizedBox(
-              height: MediaQuery.of(context).size.width > 600
-                  ? 300
-                  : 250, // Mengatur tinggi chart responsif
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  barGroups: List.generate(categories.length, (index) {
-                    final category = categories[index];
-                    final color = categoryColors[category] ?? Colors.grey;
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: totals[category]!.toDouble(),
-                          color: color,
-                          width: 20,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    );
-                  }),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text(
+                    'Tanggal: ${DateFormat('dd MMM yyyy').format(startDate!)} - ${DateFormat('dd MMM yyyy').format(endDate!)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= 0 &&
-                              value.toInt() < categories.length) {
-                            return Text(
-                              categories[value.toInt()],
-                              style: const TextStyle(fontSize: 10),
-                              textAlign: TextAlign.center,
-                            );
-                          }
-                          return const SizedBox();
-                        },
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.width > 600 ? 300 : 250,
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        barGroups: List.generate(categories.length, (index) {
+                          final category = categories[index];
+                          final color = categoryColors[category] ?? Colors.grey;
+                          return BarChartGroupData(
+                            x: index,
+                            barRods: [
+                              BarChartRodData(
+                                toY: totals[category]!.toDouble(),
+                                color: color,
+                                width: 20,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          );
+                        }),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 40,
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                if (value.toInt() >= 0 &&
+                                    value.toInt() < categories.length) {
+                                  return Text(
+                                    categories[value.toInt()],
+                                    style: const TextStyle(fontSize: 10),
+                                    textAlign: TextAlign.center,
+                                  );
+                                }
+                                return const SizedBox();
+                              },
+                            ),
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        gridData: FlGridData(show: true),
                       ),
                     ),
                   ),
-                  borderData: FlBorderData(show: false),
-                  gridData: FlGridData(show: true),
-                ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: GridView.count(
+                      crossAxisCount: MediaQuery.of(context).size.width > 600
+                          ? 6
+                          : 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      children: totals.entries.map((entry) {
+                        return buildCategoryCard(entry.key, entry.value);
+                      }).toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // ======== GRID VIEW DATA ========
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: MediaQuery.of(context).size.width > 600 ? 6 : 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                children: totals.entries.map((entry) {
-                  return buildCategoryCard(entry.key, entry.value);
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
