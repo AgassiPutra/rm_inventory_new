@@ -392,12 +392,12 @@ class _Menu1PageState extends State<Menu1Page> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Current Time', style: TextStyle(fontSize: 12)),
                         SizedBox(height: 4),
                         TextField(
                           enabled: false,
                           controller: currentTimeController,
                           decoration: InputDecoration(
+                            labelText: 'Current Time',
                             isDense: true,
                             border: OutlineInputBorder(),
                           ),
@@ -410,7 +410,6 @@ class _Menu1PageState extends State<Menu1Page> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Current Shift', style: TextStyle(fontSize: 12)),
                         SizedBox(height: 4),
                         TextField(
                           enabled: false,
