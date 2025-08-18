@@ -187,12 +187,13 @@ class _Menu1PageState extends State<Menu1Page> {
     final token = await getToken();
     if (token == null || token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Token tidak ditemukan. Silakan login ulang.')),
+        const SnackBar(
+          content: Text('Token tidak ditemukan. Silakan login ulang.'),
+        ),
       );
       return;
     }
 
-    // Set qtyPo from controller
     final qtyPo = qtyPoController.text;
 
     // Basic validation
@@ -200,9 +201,9 @@ class _Menu1PageState extends State<Menu1Page> {
         selectedJenisRm == null ||
         qtyPo.isEmpty ||
         selectedSupplier == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Harap lengkapi semua field')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Harap lengkapi semua field')),
+      );
       return;
     }
 
@@ -220,7 +221,7 @@ class _Menu1PageState extends State<Menu1Page> {
     if (invoiceFile != null) {
       request.files.add(
         await http.MultipartFile.fromPath(
-          'invoice_supplier', // <-- ganti key-nya di sini
+          'invoice_supplier',
           invoiceFile!.path,
           filename: invoiceFile!.path.split('/').last,
         ),
@@ -241,13 +242,128 @@ class _Menu1PageState extends State<Menu1Page> {
     final resBody = await response.stream.bytesToString();
 
     if (response.statusCode == 200 || response.statusCode == 201) {
+      final jsonRes = jsonDecode(resBody);
+      debugPrint("Raw Response Incoming-RM: $jsonRes");
+
+      final fakturBaru = jsonRes['data']?['faktur'];
+      debugPrint("✅ Faktur baru: $fakturBaru");
+
+      // === POST Timbangan ===
+      final timbangUri = Uri.parse(
+        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+      );
+
+      final timbangResponse = await http.post(
+        timbangUri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "weight": "40.30",
+          "status": "Normal",
+          "type_rm": selectedJenisRm!,
+        }),
+      );
+
+      debugPrint("Raw Response POST Timbangan: ${timbangResponse.body}");
+
+      // kalau POST Timbangan gagal → stop
+      if (timbangResponse.statusCode != 200 &&
+          timbangResponse.statusCode != 201) {
+        debugPrint("❌ Gagal POST Timbangan, proses dihentikan.");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal kirim timbangan: ${timbangResponse.body}'),
+          ),
+        );
+        return;
+      }
+
+      // === GET Timbangan ===
+      final getUri = Uri.parse(
+        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+      );
+
+      final getResponse = await http.get(
+        getUri,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (getResponse.statusCode == 200) {
+        final timbanganData = jsonDecode(getResponse.body);
+
+        if (timbanganData['success'] == true) {
+          final dataList = timbanganData['data'] as List;
+          if (dataList.isNotEmpty) {
+            final fakturMap = dataList.first as Map<String, dynamic>;
+            final fakturKey = fakturMap.keys.first;
+            final listTimbang = fakturMap[fakturKey] as List;
+
+            debugPrint("📦 Faktur: $fakturKey");
+            for (var item in listTimbang) {
+              debugPrint(
+                "⏰ ${item['date_time']} | 🐓 ${item['type_rm']} | ⚖️ ${item['weight']} Kg | ${item['status']}",
+              );
+            }
+          }
+        }
+      } else {
+        debugPrint("❌ Gagal GET Timbangan: ${getResponse.body}");
+      }
+
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Data berhasil dikirim')));
+      ).showSnackBar(const SnackBar(content: Text('Data berhasil dikirim')));
+
+      // ✅ Reset form setelah submit sukses
+      resetForm();
     } else {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Gagal kirim: $resBody')));
+    }
+  }
+
+  void resetForm() {
+    setState(() {
+      selectedUnit = null;
+      selectedJenisRm = null;
+      qtyPoController.clear();
+      selectedSupplier = null;
+      produsenController.clear();
+      invoiceFile = null;
+      suratJalanFile = null;
+      currentTimeController.text = currentTime;
+    });
+  }
+
+  Future<void> submitTimbangan(String faktur, String token) async {
+    final uri = Uri.parse(
+      'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$faktur',
+    );
+
+    final body = {
+      "weight": "40.30",
+      "status": "normal",
+      "type_rm": "Boneless Dada (BLD)",
+    };
+
+    final response = await http.post(
+      uri,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+      body: jsonEncode(body),
+    );
+
+    debugPrint("Raw Response POST Timbangan: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      debugPrint("✅ Timbangan berhasil dikirim");
+    } else {
+      debugPrint("❌ Gagal kirim timbangan: ${response.body}");
     }
   }
 
