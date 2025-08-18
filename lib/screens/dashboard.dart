@@ -29,11 +29,11 @@ class _DashboardPageState extends State<DashboardPage> {
   DateTime? endDate;
   List<IncomingData> allData = [];
   bool isLoading = true;
+  bool isExporting = false;
 
   @override
   void initState() {
     super.initState();
-    // Default filter tanggal ke hari ini
     startDate = DateTime.now();
     endDate = DateTime.now();
     fetchDataFromAPI();
@@ -99,14 +99,14 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Future<void> exportToCSV(Map<String, int> totals) async {
+  Future<void> exportToCSV(Map<String, double> totals) async {
     try {
       List<List<dynamic>> rows = [
         ["Kategori", "Total (kg)"],
       ];
 
       totals.forEach((category, total) {
-        rows.add([category, total]);
+        rows.add([category, total.toStringAsFixed(2)]);
       });
 
       String csvData = const ListToCsvConverter().convert(rows);
@@ -162,10 +162,10 @@ class _DashboardPageState extends State<DashboardPage> {
     }).toList();
   }
 
-  Map<String, int> calculateTotalByCategory(List<IncomingData> dataList) {
-    Map<String, int> totals = {};
+  Map<String, double> calculateTotalByCategory(List<IncomingData> dataList) {
+    Map<String, double> totals = {};
     for (var data in dataList) {
-      totals[data.jenisRm] = (totals[data.jenisRm] ?? 0) + data.qtyIn.toInt();
+      totals[data.jenisRm] = (totals[data.jenisRm] ?? 0) + data.qtyIn;
     }
     return totals;
   }
@@ -181,13 +181,28 @@ class _DashboardPageState extends State<DashboardPage> {
         title: const Text('Dashboard Incoming'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.download),
+            icon: isExporting
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.download),
             tooltip: "Export ke CSV",
-            onPressed: () => exportToCSV(totals),
+            onPressed: isLoading || isExporting
+                ? null
+                : () async {
+                    setState(() => isExporting = true);
+                    await exportToCSV(totals);
+                    setState(() => isExporting = false);
+                  },
           ),
           IconButton(
             icon: const Icon(Icons.date_range),
-            onPressed: () => selectDateRange(context),
+            onPressed: isLoading ? null : () => selectDateRange(context),
           ),
         ],
       ),
@@ -218,7 +233,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             x: index,
                             barRods: [
                               BarChartRodData(
-                                toY: totals[category]!.toDouble(),
+                                toY: totals[category]!,
                                 color: color,
                                 width: 20,
                                 borderRadius: BorderRadius.circular(4),
@@ -274,7 +289,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget buildCategoryCard(String category, int total) {
+  Widget buildCategoryCard(String category, double total) {
     final icon = getIconForCategory(category);
     return Card(
       elevation: 3,
@@ -292,7 +307,10 @@ class _DashboardPageState extends State<DashboardPage> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
-            Text('$total kg', style: const TextStyle(fontSize: 16)),
+            Text(
+              '${total.toStringAsFixed(2)} kg',
+              style: const TextStyle(fontSize: 16),
+            ),
           ],
         ),
       ),
