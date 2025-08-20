@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class Menu1Page extends StatefulWidget {
   @override
@@ -20,12 +21,14 @@ class _Menu1PageState extends State<Menu1Page> {
   late TextEditingController produsenController;
   TextEditingController qtyPoController = TextEditingController();
   List<Map<String, dynamic>> suppliers = [];
+  StreamSubscription<List<int>>? _notificationSubscription;
 
   String? selectedUnit;
   String? selectedJenisRm;
   String? selectedSupplier;
   String qtyPo = '';
   String produsen = '';
+  String? esp32Weight;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -56,6 +59,7 @@ class _Menu1PageState extends State<Menu1Page> {
     shiftController.dispose();
     qtyPoController.dispose();
     produsenController.dispose();
+    _notificationSubscription?.cancel();
     super.dispose();
   }
 
@@ -127,7 +131,31 @@ class _Menu1PageState extends State<Menu1Page> {
       setState(() {
         connectedDevice = device;
         bluetoothStatus = "Connected to ${device.name}";
+        esp32Weight = null;
       });
+
+      var services = await device.discoverServices();
+      for (var service in services) {
+        for (var characteristic in service.characteristics) {
+          if (characteristic.properties.notify) {
+            await characteristic.setNotifyValue(true);
+            _notificationSubscription = characteristic.value.listen((value) {
+              final weightData = String.fromCharCodes(value).trim();
+
+              try {
+                final weight = double.parse(weightData);
+                if (mounted) {
+                  setState(() {
+                    esp32Weight = weight.toStringAsFixed(2);
+                  });
+                }
+              } catch (e) {
+                debugPrint("❌ Gagal parsing data berat: '$weightData'");
+              }
+            });
+          }
+        }
+      }
     } catch (e) {
       if (e.toString().contains('already connected')) {
         setState(() {
@@ -714,6 +742,13 @@ class _Menu1PageState extends State<Menu1Page> {
                                   ),
                                 ),
                                 SizedBox(height: 4),
+                                if (connectedDevice != null) ...[
+                                  if (esp32Weight != null)
+                                    Text(
+                                      'Weight: $esp32Weight Kg',
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                ],
                                 Text(
                                   'Make sure your ESP32 scale is powered on and within range',
                                   style: TextStyle(
