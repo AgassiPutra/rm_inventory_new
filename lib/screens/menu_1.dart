@@ -29,6 +29,9 @@ class _Menu1PageState extends State<Menu1Page> {
   String qtyPo = '';
   String produsen = '';
   String? esp32Weight;
+  bool _showScaleConnection = false;
+  String? selectedStatusPenerimaan = 'Normal';
+  String? selectedTipeRM = 'Boneless Dada (BLD)';
 
   final ImagePicker _picker = ImagePicker();
 
@@ -333,7 +336,6 @@ class _Menu1PageState extends State<Menu1Page> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Data berhasil dikirim')));
-      resetForm();
     } else {
       ScaffoldMessenger.of(
         context,
@@ -638,6 +640,9 @@ class _Menu1PageState extends State<Menu1Page> {
             Center(
               child: ElevatedButton(
                 onPressed: () {
+                  setState(() {
+                    _showScaleConnection = true;
+                  });
                   submitData();
                 },
                 child: Text('Submit'),
@@ -648,127 +653,273 @@ class _Menu1PageState extends State<Menu1Page> {
               ),
             ),
             SizedBox(height: 32),
-            Card(
-              color: Colors.grey[20],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Scale Connection',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: Icon(
-                            Icons.settings,
-                            size: 16,
-                            color: Colors.grey,
-                          ),
-                          label: Text(
-                            'Debug',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 24),
-                    Center(
-                      child: Column(
+            if (_showScaleConnection)
+              Card(
+                color: Colors.grey[20],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          ElevatedButton.icon(
-                            onPressed: scanForDevices,
-                            icon: Icon(Icons.bluetooth, color: Colors.grey),
-                            label: Text('Connect to Scale'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.grey,
-                              side: BorderSide(color: Colors.grey),
-                              shape: StadiumBorder(),
-                              elevation: 0,
+                          Expanded(
+                            child: Text(
+                              'Scale Connection',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
                             ),
                           ),
-                          SizedBox(height: 32),
-                          if (bluetoothStatus == "Scanning...")
-                            CircularProgressIndicator()
-                          else if (bluetoothStatus == "Device(s) found" &&
-                              foundDevices.isNotEmpty)
-                            Column(
-                              children: foundDevices
+                          TextButton.icon(
+                            onPressed: () {}, // debug action
+                            icon: Icon(
+                              Icons.settings,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            label: Text(
+                              'Debug',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 24),
+                      if (connectedDevice != null && esp32Weight != null) ...[
+                        Text('Status Penerimaan:'),
+                        SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: selectedStatusPenerimaan,
+                          items: ['Normal', 'Reject', 'Retur']
+                              .map(
+                                (status) => DropdownMenuItem(
+                                  value: status,
+                                  child: Text(status),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedStatusPenerimaan = value;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        Text('Tipe RM:'),
+                        SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: selectedTipeRM,
+                          items:
+                              [
+                                    'Boneless Dada (BLD)',
+                                    'Boneless Paha Kulit (BLPK)',
+                                  ]
                                   .map(
-                                    (device) => ListTile(
-                                      title: Text(
-                                        device.name.isNotEmpty
-                                            ? device.name
-                                            : device.id.toString(),
-                                      ),
-                                      subtitle: Text(device.id.toString()),
-                                      trailing: ElevatedButton(
-                                        onPressed: () =>
-                                            connectToDevice(device),
-                                        child: Text('Connect'),
-                                      ),
+                                    (tipe) => DropdownMenuItem(
+                                      value: tipe,
+                                      child: Text(tipe),
                                     ),
                                   )
                                   .toList(),
-                            )
-                          else
-                            Column(
-                              children: [
-                                Icon(
-                                  Icons.bluetooth_disabled,
-                                  size: 48,
-                                  color: Colors.grey[400],
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  bluetoothStatus,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                if (connectedDevice != null) ...[
-                                  if (esp32Weight != null)
-                                    Text(
-                                      'Weight: $esp32Weight Kg',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                ],
-                                Text(
-                                  'Make sure your ESP32 scale is powered on and within range',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                          onChanged: (value) {
+                            setState(() {
+                              selectedTipeRM = value;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
                             ),
-                        ],
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                      ],
+                      Center(
+                        child: connectedDevice != null && esp32Weight != null
+                            ? _buildConnectedScaleUI()
+                            : _buildConnectionUI(),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildConnectedScaleUI() {
+    double? weight = esp32Weight is double
+        ? esp32Weight as double
+        : double.tryParse(esp32Weight.toString());
+
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.lightBlue[50],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.green[100],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'STABLE',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green[800],
+              ),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'WEIGHT',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+              letterSpacing: 1.5,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            weight != null ? '${weight.toStringAsFixed(2)} kg' : '- kg',
+            style: TextStyle(
+              fontSize: 40,
+              fontWeight: FontWeight.bold,
+              color: (weight != null && weight < 0) ? Colors.red : Colors.black,
+            ),
+          ),
+          SizedBox(height: 16),
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'TOTAL WEIGHT RECEIVED',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[700],
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '3.97 kg',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Colors.green[900],
+                  ),
+                ),
+                Text('(1 readings)', style: TextStyle(color: Colors.grey[700])),
+              ],
+            ),
+          ),
+          SizedBox(height: 16),
+
+          // Receive Button
+          ElevatedButton.icon(
+            onPressed: () {},
+            icon: Icon(Icons.download),
+            label: Text('Receive'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              shape: StadiumBorder(),
+              minimumSize: Size(double.infinity, 48),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionUI() {
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          onPressed: scanForDevices,
+          icon: Icon(Icons.bluetooth, color: Colors.grey),
+          label: Text('Connect to Scale'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.grey,
+            side: BorderSide(color: Colors.grey),
+            shape: StadiumBorder(),
+            elevation: 0,
+          ),
+        ),
+        SizedBox(height: 32),
+
+        // Status
+        if (bluetoothStatus == "Scanning...")
+          CircularProgressIndicator()
+        else if (bluetoothStatus == "Device(s) found" &&
+            foundDevices.isNotEmpty)
+          Column(
+            children: foundDevices.map((device) {
+              return ListTile(
+                title: Text(
+                  device.name.isNotEmpty ? device.name : device.id.toString(),
+                ),
+                subtitle: Text(device.id.toString()),
+                trailing: ElevatedButton(
+                  onPressed: () => connectToDevice(device),
+                  child: Text('Connect'),
+                ),
+              );
+            }).toList(),
+          )
+        else
+          Column(
+            children: [
+              Icon(Icons.bluetooth_disabled, size: 48, color: Colors.grey[400]),
+              SizedBox(height: 8),
+              Text(
+                bluetoothStatus,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.grey[700],
+                ),
+              ),
+              SizedBox(height: 4),
+              if (connectedDevice != null && esp32Weight != null)
+                Text('Weight: $esp32Weight Kg', style: TextStyle(fontSize: 16)),
+              Text(
+                'Make sure your ESP32 scale is powered on and within range',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+      ],
     );
   }
 }
