@@ -31,7 +31,8 @@ class _Menu1PageState extends State<Menu1Page> {
   String? esp32Weight;
   bool _showScaleConnection = false;
   String? selectedStatusPenerimaan = 'Normal';
-  String? selectedTipeRM = 'Boneless Dada (BLD)';
+  String? selectedTipeRM;
+  String? lastSubmittedFaktur;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -65,6 +66,14 @@ class _Menu1PageState extends State<Menu1Page> {
     _notificationSubscription?.cancel();
     super.dispose();
   }
+
+  final Map<String, List<String>> tipeRMOptions = {
+    'Wet Chicken': ['Boneless Dada (BLD)', 'Boneless Paha Kulit (BLPK)'],
+    'Sayuran': ['Wortel', 'Bawang', 'Jamur'],
+    'Dry': ['Bumbu', 'Tepung', 'Lainnya'],
+    'Ice': ['Es Batu', 'Ice Cube'],
+    'Udang': ['Udang Fresh', 'Udang Beku'],
+  };
 
   Future<void> _pickImage(Function(XFile?) onPicked) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
@@ -130,7 +139,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
   Future<void> connectToDevice(BluetoothDevice device) async {
     try {
-      await device.connect(timeout: Duration(seconds: 10));
+      await device.connect(timeout: const Duration(seconds: 10));
       setState(() {
         connectedDevice = device;
         bluetoothStatus = "Connected to ${device.name}";
@@ -144,6 +153,7 @@ class _Menu1PageState extends State<Menu1Page> {
             await characteristic.setNotifyValue(true);
             _notificationSubscription = characteristic.value.listen((value) {
               final weightData = String.fromCharCodes(value).trim();
+              debugPrint("📩 Data dari ESP32: '$weightData'");
 
               try {
                 final weight = double.parse(weightData);
@@ -153,7 +163,7 @@ class _Menu1PageState extends State<Menu1Page> {
                   });
                 }
               } catch (e) {
-                debugPrint("❌ Gagal parsing data berat: '$weightData'");
+                debugPrint("❌ Gagal parsing data: '$weightData'");
               }
             });
           }
@@ -210,6 +220,10 @@ class _Menu1PageState extends State<Menu1Page> {
       print('Failed to load suppliers: ${response.statusCode}');
       print('Response body: ${response.body}');
     }
+  }
+
+  Future<String?> _getLastFaktur() async {
+    return lastSubmittedFaktur;
   }
 
   Future<void> submitData() async {
@@ -273,7 +287,8 @@ class _Menu1PageState extends State<Menu1Page> {
       debugPrint("Raw Response Incoming-RM: $jsonRes");
 
       final fakturBaru = jsonRes['data']?['faktur'];
-      debugPrint("✅ Faktur baru: $fakturBaru");
+      lastSubmittedFaktur = fakturBaru;
+      debugPrint("Faktur baru: $fakturBaru");
       final timbangUri = Uri.parse(
         'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
       );
@@ -294,7 +309,7 @@ class _Menu1PageState extends State<Menu1Page> {
       debugPrint("Raw Response POST Timbangan: ${timbangResponse.body}");
       if (timbangResponse.statusCode != 200 &&
           timbangResponse.statusCode != 201) {
-        debugPrint("❌ Gagal POST Timbangan, proses dihentikan.");
+        debugPrint("Gagal POST Timbangan, proses dihentikan.");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal kirim timbangan: ${timbangResponse.body}'),
@@ -330,7 +345,7 @@ class _Menu1PageState extends State<Menu1Page> {
           }
         }
       } else {
-        debugPrint("❌ Gagal GET Timbangan: ${getResponse.body}");
+        debugPrint("Gagal GET Timbangan: ${getResponse.body}");
       }
 
       ScaffoldMessenger.of(
@@ -574,6 +589,8 @@ class _Menu1PageState extends State<Menu1Page> {
               onChanged: (v) {
                 setState(() {
                   selectedJenisRm = v;
+                  final tipeList = tipeRMOptions[v] ?? [];
+                  selectedTipeRM = tipeList.isNotEmpty ? tipeList.first : null;
                 });
               },
             ),
@@ -677,7 +694,7 @@ class _Menu1PageState extends State<Menu1Page> {
                             ),
                           ),
                           TextButton.icon(
-                            onPressed: () {}, // debug action
+                            onPressed: () {},
                             icon: Icon(
                               Icons.settings,
                               size: 16,
@@ -691,7 +708,7 @@ class _Menu1PageState extends State<Menu1Page> {
                         ],
                       ),
                       SizedBox(height: 24),
-                      if (connectedDevice != null && esp32Weight != null) ...[
+                      if (connectedDevice != null) ...[
                         Text('Status Penerimaan:'),
                         SizedBox(height: 8),
                         DropdownButtonFormField<String>(
@@ -723,18 +740,14 @@ class _Menu1PageState extends State<Menu1Page> {
                         SizedBox(height: 8),
                         DropdownButtonFormField<String>(
                           value: selectedTipeRM,
-                          items:
-                              [
-                                    'Boneless Dada (BLD)',
-                                    'Boneless Paha Kulit (BLPK)',
-                                  ]
-                                  .map(
-                                    (tipe) => DropdownMenuItem(
-                                      value: tipe,
-                                      child: Text(tipe),
-                                    ),
-                                  )
-                                  .toList(),
+                          items: (tipeRMOptions[selectedJenisRm] ?? [])
+                              .map(
+                                (tipe) => DropdownMenuItem(
+                                  value: tipe,
+                                  child: Text(tipe),
+                                ),
+                              )
+                              .toList(),
                           onChanged: (value) {
                             setState(() {
                               selectedTipeRM = value;
@@ -842,10 +855,75 @@ class _Menu1PageState extends State<Menu1Page> {
             ),
           ),
           SizedBox(height: 16),
-
-          // Receive Button
           ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () async {
+              if (esp32Weight == null ||
+                  selectedTipeRM == null ||
+                  selectedStatusPenerimaan == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Lengkapi data timbangan terlebih dahulu'),
+                  ),
+                );
+                return;
+              }
+
+              final token = await getToken();
+              if (token == null || token.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Token tidak ditemukan')),
+                );
+                return;
+              }
+
+              if (selectedJenisRm == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Jenis RM belum dipilih')),
+                );
+                return;
+              }
+
+              final fakturBaru = await _getLastFaktur();
+              if (fakturBaru == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Faktur tidak ditemukan. Klik Submit terlebih dahulu.',
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              final response = await http.post(
+                Uri.parse(
+                  'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+                ),
+                headers: {
+                  'Authorization': 'Bearer $token',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  "weight": esp32Weight,
+                  "status": selectedStatusPenerimaan,
+                  "type_rm": selectedTipeRM,
+                }),
+              );
+
+              if (response.statusCode == 200 || response.statusCode == 201) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Data timbangan berhasil dikirim')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Gagal kirim data timbangan: ${response.body}',
+                    ),
+                  ),
+                );
+              }
+            },
             icon: Icon(Icons.download),
             label: Text('Receive'),
             style: ElevatedButton.styleFrom(
@@ -876,8 +954,6 @@ class _Menu1PageState extends State<Menu1Page> {
           ),
         ),
         SizedBox(height: 32),
-
-        // Status
         if (bluetoothStatus == "Scanning...")
           CircularProgressIndicator()
         else if (bluetoothStatus == "Device(s) found" &&
