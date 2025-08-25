@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:rm_inventory_new/screens/incomingdetailpage.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_drawer.dart';
@@ -93,17 +94,9 @@ class _Menu2PageState extends State<Menu2Page> {
         final List<dynamic> items = jsonData['data'];
 
         setState(() {
-          data = items.map((item) {
-            return {
-              'faktur': item['faktur'] ?? '',
-              'unit': item['unit'] ?? '',
-              'type': item['jenis_rm'] ?? '',
-              'supplier': item['supplier'] ?? '',
-              'date': item['tanggal_incoming'] ?? '',
-            };
-          }).toList();
-
-          // Segera terapkan filter jika diperlukan
+          data = items
+              .map<Map<String, dynamic>>((item) => item as Map<String, dynamic>)
+              .toList();
           applyFilter();
         });
       } else {
@@ -120,74 +113,6 @@ class _Menu2PageState extends State<Menu2Page> {
     setState(() {
       isLoading = false;
     });
-  }
-
-  @override
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Incoming Raw Materials'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.filter_alt_outlined),
-            onPressed: () {
-              _showFilterDialog();
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () {
-              clearFilter();
-            },
-          ),
-          IconButton(icon: Icon(Icons.person), onPressed: () {}),
-        ],
-      ),
-      drawer: CustomDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: isLoading
-                      ? Center(child: CircularProgressIndicator())
-                      : DataTable(
-                          headingRowColor: MaterialStateProperty.all(
-                            Colors.blue[50],
-                          ),
-                          columnSpacing: 24,
-                          columns: [
-                            DataColumn(label: Text('Faktur')),
-                            DataColumn(label: Text('Unit')),
-                            DataColumn(label: Text('Type')),
-                            DataColumn(label: Text('Supplier')),
-                            DataColumn(label: Text('Date')),
-                          ],
-                          rows: filteredData.map((row) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text(row['faktur'] ?? '')),
-                                DataCell(Text(row['unit'] ?? '')),
-                                DataCell(Text(row['type'] ?? '')),
-                                DataCell(Text(row['supplier'] ?? '')),
-                                DataCell(Text(row['date'] ?? '')),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
   }
 
   void _showFilterDialog() {
@@ -245,6 +170,143 @@ class _Menu2PageState extends State<Menu2Page> {
             child: Text('Apply'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditDialog(Map<String, dynamic> rowData) {
+    fakturController.text = rowData['faktur'] ?? '';
+    unitController.text = rowData['unit'] ?? '';
+    typeController.text = rowData['type'] ?? '';
+    supplierController.text = rowData['supplier'] ?? '';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Edit Data'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: fakturController,
+                decoration: InputDecoration(labelText: 'Faktur'),
+              ),
+              TextField(
+                controller: unitController,
+                decoration: InputDecoration(labelText: 'Unit'),
+              ),
+              TextField(
+                controller: typeController,
+                decoration: InputDecoration(labelText: 'Type'),
+              ),
+              TextField(
+                controller: supplierController,
+                decoration: InputDecoration(labelText: 'Supplier'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                rowData['faktur'] = fakturController.text;
+                rowData['unit'] = unitController.text;
+                rowData['type'] = typeController.text;
+                rowData['supplier'] = supplierController.text;
+                applyFilter();
+              });
+              Navigator.pop(context);
+            },
+            child: Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Incoming Raw Materials'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.filter_alt_outlined),
+            onPressed: () {
+              _showFilterDialog();
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              clearFilter();
+            },
+          ),
+          IconButton(icon: Icon(Icons.person), onPressed: () {}),
+        ],
+      ),
+      drawer: CustomDrawer(),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : DataTable(
+                          headingRowColor: MaterialStateProperty.all(
+                            Colors.blue[50],
+                          ),
+                          columnSpacing: 24,
+                          columns: [
+                            DataColumn(label: Text('Faktur')),
+                            DataColumn(label: Text('Unit')),
+                            DataColumn(label: Text('Type')),
+                            DataColumn(label: Text('Supplier')),
+                            DataColumn(label: Text('Date')),
+                            DataColumn(label: Text('Action')),
+                          ],
+                          rows: filteredData.map((row) {
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(row['faktur'] ?? '')),
+                                DataCell(Text(row['unit'] ?? '')),
+                                DataCell(Text(row['type'] ?? '')),
+                                DataCell(Text(row['supplier'] ?? '')),
+                                DataCell(Text(row['date'] ?? '')),
+                                DataCell(
+                                  IconButton(
+                                    icon: Icon(Icons.edit, color: Colors.blue),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              IncomingDetailPage(data: row),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
