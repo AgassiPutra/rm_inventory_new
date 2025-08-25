@@ -273,7 +273,6 @@ class _Menu2PageState extends State<Menu2Page> {
                             DataColumn(label: Text('Unit')),
                             DataColumn(label: Text('Type')),
                             DataColumn(label: Text('Supplier')),
-                            DataColumn(label: Text('Date')),
                             DataColumn(label: Text('Action')),
                           ],
                           rows: filteredData.map((row) {
@@ -283,7 +282,6 @@ class _Menu2PageState extends State<Menu2Page> {
                                 DataCell(Text(row['unit'] ?? '')),
                                 DataCell(Text(row['type'] ?? '')),
                                 DataCell(Text(row['supplier'] ?? '')),
-                                DataCell(Text(row['date'] ?? '')),
                                 DataCell(
                                   IconButton(
                                     icon: Icon(Icons.edit, color: Colors.blue),

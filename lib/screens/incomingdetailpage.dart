@@ -1,8 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../widgets/custom_drawer.dart';
 import 'package:image_picker/image_picker.dart';
 
 class IncomingDetailPage extends StatelessWidget {
@@ -64,8 +60,8 @@ class IncomingDetailPage extends StatelessWidget {
               title: 'Update Documents',
               subtitle: 'Use this form to upload revised versions.',
               children: [
-                _buildUploadRow('Invoice Supplier Revision'),
-                _buildUploadRow('Delivery Note (Surat Jalan) Revision'),
+                UploadRow(label: 'Invoice Supplier Revision'),
+                UploadRow(label: 'Delivery Note (Surat Jalan) Revision'),
               ],
             ),
 
@@ -182,21 +178,6 @@ class IncomingDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildUploadRow(String label) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      trailing: ElevatedButton.icon(
-        onPressed: () {
-          // TODO: Pilih file
-        },
-        icon: Icon(Icons.upload_file),
-        label: Text('Choose File'),
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-      ),
-    );
-  }
-
   Widget _buildSection({
     required String title,
     String? subtitle,
@@ -221,6 +202,50 @@ class IncomingDetailPage extends StatelessWidget {
             ...children,
           ],
         ),
+      ),
+    );
+  }
+}
+
+class UploadRow extends StatefulWidget {
+  final String label;
+
+  const UploadRow({required this.label});
+
+  @override
+  _UploadRowState createState() => _UploadRowState();
+}
+
+class _UploadRowState extends State<UploadRow> {
+  XFile? _pickedFile;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickFile() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+
+    if (image != null) {
+      setState(() {
+        _pickedFile = image;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Selected file: ${image.name}')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(widget.label),
+      subtitle: _pickedFile != null
+          ? Text('Selected: ${_pickedFile!.name}')
+          : Text('No file selected'),
+      trailing: ElevatedButton.icon(
+        onPressed: _pickFile,
+        icon: Icon(Icons.upload_file),
+        label: Text('Choose File'),
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
       ),
     );
   }
