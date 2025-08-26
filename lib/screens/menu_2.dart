@@ -4,6 +4,7 @@ import 'package:rm_inventory_new/screens/incomingdetailpage.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_drawer.dart';
+import '../utils/auth.dart';
 
 class Menu2Page extends StatefulWidget {
   @override
@@ -26,15 +27,7 @@ class _Menu2PageState extends State<Menu2Page> {
     super.initState();
     fetchIncomingRM();
     filteredData = List.from(data);
-    _checkAuth();
-  }
-
-  Future<void> _checkAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null || token.isEmpty) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    Auth.check(context);
   }
 
   @override

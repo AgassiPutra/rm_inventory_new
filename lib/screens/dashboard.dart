@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/incoming_data.dart';
 import '../widgets/custom_drawer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/auth.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -37,15 +38,7 @@ class _DashboardPageState extends State<DashboardPage> {
     startDate = DateTime.now();
     endDate = DateTime.now();
     fetchDataFromAPI();
-    _checkAuth();
-  }
-
-  Future<void> _checkAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null || token.isEmpty) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    Auth.check(context);
   }
 
   Future<void> fetchDataFromAPI() async {

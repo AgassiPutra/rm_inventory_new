@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import '../utils/auth.dart';
 
 class Menu1Page extends StatefulWidget {
   @override
@@ -46,7 +47,7 @@ class _Menu1PageState extends State<Menu1Page> {
   @override
   void initState() {
     super.initState();
-    _checkAuth();
+    Auth.check(context);
 
     final now = DateTime.now();
     currentTime =
@@ -79,14 +80,6 @@ class _Menu1PageState extends State<Menu1Page> {
   Future<void> _pickImage(Function(XFile?) onPicked) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
     onPicked(image);
-  }
-
-  Future<void> _checkAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null || token.isEmpty) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
   }
 
   Future<bool> requestBluetoothPermissions() async {
