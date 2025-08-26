@@ -8,6 +8,7 @@ import 'screens/menu_3.dart';
 import 'screens/menu_4.dart';
 import 'screens/menu_5.dart';
 import 'screens/menu_6.dart';
+import 'screens/splash.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -30,10 +31,11 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'RM Inventory',
       theme: ThemeData(primarySwatch: Colors.blue),
-      initialRoute: '/login',
+      initialRoute: '/splash',
       routes: {
+        '/splash': (context) => SplashScreen(),
         '/login': (context) => LoginPage(),
-        '/': (context) => DashboardPage(),
+        '/dashboard': (context) => DashboardPage(),
         '/menu1': (context) => Menu1Page(),
         '/menu2': (context) => Menu2Page(),
         '/menu3': (context) => Menu3Page(),

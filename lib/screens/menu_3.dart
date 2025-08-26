@@ -18,6 +18,15 @@ class _Menu3PageState extends State<Menu3Page> {
   void initState() {
     super.initState();
     fetchSuppliers();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null || token.isEmpty) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   Future<String?> getToken() async {

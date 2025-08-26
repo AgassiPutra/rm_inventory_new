@@ -48,7 +48,7 @@ class _LoginPageState extends State<LoginPage> {
           );
           await prefs.setString('posisi', data['data']['user']['posisi'] ?? '');
 
-          Navigator.pushReplacementNamed(context, '/');
+          Navigator.pushReplacementNamed(context, '/dashboard');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(data['message'] ?? 'Login gagal')),

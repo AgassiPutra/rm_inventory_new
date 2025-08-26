@@ -96,7 +96,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
             ),
           ),
-          drawerItem(context, 'Dashboard', '/'),
+          drawerItem(context, 'Dashboard', '/dashboard'),
           drawerItem(context, 'RM Incoming', '/menu1'),
           drawerItem(context, 'RM Incoming Dashboard', '/menu2'),
           drawerItem(context, 'Master Supplier', '/menu3'),

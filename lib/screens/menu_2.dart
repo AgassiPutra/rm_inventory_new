@@ -26,6 +26,15 @@ class _Menu2PageState extends State<Menu2Page> {
     super.initState();
     fetchIncomingRM();
     filteredData = List.from(data);
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null || token.isEmpty) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   @override

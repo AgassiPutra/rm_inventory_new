@@ -37,6 +37,15 @@ class _DashboardPageState extends State<DashboardPage> {
     startDate = DateTime.now();
     endDate = DateTime.now();
     fetchDataFromAPI();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null || token.isEmpty) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   Future<void> fetchDataFromAPI() async {
