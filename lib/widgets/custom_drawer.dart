@@ -105,6 +105,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
           drawerItem(context, 'Master', '/menu6'),
           const Spacer(),
           const Divider(),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              'Versi 0.1.5',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
