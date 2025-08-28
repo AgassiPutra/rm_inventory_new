@@ -7,9 +7,9 @@ import 'bluetooth_manager.dart';
 
 BluetoothManager createBluetoothManager() {
   if (kIsWeb) {
-    return web.BluetoothManagerImpl();
+    return web.BluetoothManagerWeb();
   } else if (Platform.isAndroid || Platform.isIOS) {
-    return mobile.BluetoothManagerImpl();
+    return mobile.BluetoothManagerMobile();
   } else {
     throw UnsupportedError("Unsupported platform for BluetoothManager");
   }

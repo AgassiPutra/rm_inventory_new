@@ -1,21 +1,28 @@
 import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'bluetooth_manager.dart';
+import '../models/app_bluetooth_device.dart';
 
 class BluetoothManagerMobile implements BluetoothManager {
-  List<BluetoothDevice> _devices = [];
-  StreamController<String> _weightController = StreamController.broadcast();
-  StreamSubscription? _notificationSub;
+  final List<AppBluetoothDevice> _devices = [];
+  final StreamController<String> _weightController =
+      StreamController.broadcast();
+
+  StreamSubscription<List<ScanResult>>? _scanSub;
+  StreamSubscription<List<int>>? _notificationSub;
+
   String _status = 'Idle';
+  BluetoothDevice? _device;
 
   @override
   void dispose() {
+    _scanSub?.cancel();
     _notificationSub?.cancel();
     _weightController.close();
   }
 
   @override
-  List<BluetoothDevice> get foundDevices => _devices;
+  List<AppBluetoothDevice> get foundDevices => _devices;
 
   @override
   String get status => _status;
@@ -27,42 +34,73 @@ class BluetoothManagerMobile implements BluetoothManager {
   Future<void> scanForDevices() async {
     _devices.clear();
     _status = "Scanning...";
-    final subscription = FlutterBluePlus.scanResults.listen((results) {
+
+    _scanSub = FlutterBluePlus.scanResults.listen((results) {
       for (ScanResult r in results) {
-        if (!_devices.any((d) => d.id == r.device.id)) {
-          _devices.add(r.device);
+        if (!_devices.any((d) => d.id == r.device.id.id)) {
+          _devices.add(
+            AppBluetoothDevice(
+              id: r.device.id.id,
+              name: r.device.name.isNotEmpty ? r.device.name : "Unnamed",
+              nativeDevice: r.device,
+            ),
+          );
         }
       }
     });
 
-    await FlutterBluePlus.startScan(timeout: Duration(seconds: 5));
-    await subscription.cancel();
+    await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+    await _scanSub?.cancel();
 
-    _status = _devices.isEmpty ? "No devices found" : "Devices found";
+    _status = _devices.isEmpty ? "No scales found" : "Device(s) found";
   }
 
   @override
   Future<void> connectToDevice(dynamic device) async {
-    if (device is! BluetoothDevice) return;
+    if (device is! AppBluetoothDevice) return;
+
+    final native = device.nativeDevice as BluetoothDevice;
+    _device = native;
 
     try {
-      await device.connect(timeout: Duration(seconds: 10));
+      await native.connect(timeout: const Duration(seconds: 10));
       _status = "Connected to ${device.name}";
 
-      var services = await device.discoverServices();
+      var services = await native.discoverServices();
       for (var service in services) {
         for (var characteristic in service.characteristics) {
           if (characteristic.properties.notify) {
             await characteristic.setNotifyValue(true);
             _notificationSub = characteristic.value.listen((value) {
-              final weight = String.fromCharCodes(value).trim();
-              _weightController.add(weight);
+              final weightData = String.fromCharCodes(value).trim();
+              try {
+                final weight = double.parse(weightData);
+                _weightController.add(weight.toStringAsFixed(2));
+              } catch (e) {
+                _weightController.add(weightData);
+              }
             });
           }
         }
       }
     } catch (e) {
-      _status = "Connection failed: $e";
+      if (e.toString().contains("already connected")) {
+        _status = "Already connected to ${device.name}";
+      } else {
+        _status = "Connection failed: $e";
+      }
+    }
+  }
+
+  @override
+  Future<void> disconnect() async {
+    if (_device != null) {
+      try {
+        await _device?.disconnect();
+        _status = "Disconnected from ${_device?.name}";
+      } catch (e) {
+        _status = "Disconnection failed: $e";
+      }
     }
   }
 }

@@ -2,28 +2,26 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:html' as html;
 import 'dart:js_util' as js_util;
-import 'dart:html' as html;
+
+import '../models/app_bluetooth_device.dart';
+export 'bluetooth_manager_mobile.dart'
+    if (dart.library.html) 'bluetooth_manager_web.dart';
 
 abstract class BluetoothManager {
   Future<void> scanForDevices();
-  Future<void> connectToDevice(dynamic device);
+  Future<void> connectToDevice(AppBluetoothDevice device);
   Stream<String> get weightStream;
-  List<dynamic> get foundDevices;
+  List<AppBluetoothDevice> get foundDevices;
   String get status;
   void dispose();
+  Future<void> disconnect();
 }
 
 class BluetoothManagerImpl implements BluetoothManager {
-  final List<dynamic> _foundDevices = [];
-  final _weightController = StreamController<String>.broadcast();
   final bluetooth = js_util.getProperty(html.window.navigator, 'bluetooth');
-
-  Stream<String> get weightStream => _weightController.stream;
-
-  List<dynamic> get foundDevices => _foundDevices;
-
+  final List<AppBluetoothDevice> _foundDevices = [];
+  final _weightController = StreamController<String>.broadcast();
   String _status = 'Idle';
-  String get status => _status;
 
   dynamic _device;
   dynamic _server;
@@ -31,29 +29,44 @@ class BluetoothManagerImpl implements BluetoothManager {
   html.EventListener? _notificationListener;
 
   @override
+  Stream<String> get weightStream => _weightController.stream;
+
+  @override
+  List<AppBluetoothDevice> get foundDevices => _foundDevices;
+
+  @override
+  String get status => _status;
+
+  @override
   Future<void> scanForDevices() async {
     _status = 'Requesting device...';
-    try {
-      final bluetooth = js_util.getProperty(html.window.navigator, 'bluetooth');
 
+    try {
       final device = await js_util.promiseToFuture(
         js_util.callMethod(bluetooth, 'requestDevice', [
           js_util.jsify({
-            'filters': [
-              {
-                'services': ['battery_service'],
-              },
-            ],
-            'optionalServices': ['battery_service'],
+            'acceptAllDevices': true,
+            'optionalServices': ['generic_access', 'device_information'],
           }),
         ]),
       );
 
       if (device != null) {
         _foundDevices.clear();
-        _foundDevices.add(device);
-        _status =
-            'Device found: ${js_util.getProperty(device, 'name') ?? 'Unnamed'}';
+
+        final deviceId = js_util.getProperty(device, 'id') as String;
+        final deviceName =
+            (js_util.getProperty(device, 'name') ?? 'Unnamed') as String;
+
+        _foundDevices.add(
+          AppBluetoothDevice(
+            id: deviceId,
+            name: deviceName,
+            nativeDevice: device,
+          ),
+        );
+
+        _status = 'Device found: $deviceName';
         _device = device;
       } else {
         _status = 'No device selected';
@@ -64,30 +77,48 @@ class BluetoothManagerImpl implements BluetoothManager {
   }
 
   @override
-  Future<void> connectToDevice(dynamic device) async {
-    if (device == null) {
+  Future<void> connectToDevice(AppBluetoothDevice device) async {
+    if (device.nativeDevice == null) {
       _status = "No device to connect";
       return;
     }
 
     _status = "Connecting to device...";
+
     try {
-      _server = await js_util.promiseToFuture(
-        js_util.callMethod(device, 'gatt.connect', []),
-      );
-      _characteristic = null;
-      final service = await js_util.promiseToFuture(
-        js_util.callMethod(_server, 'getPrimaryService', ['battery_service']),
-      );
-      _characteristic = await js_util.promiseToFuture(
-        js_util.callMethod(service, 'getCharacteristic', ['battery_level']),
-      );
+      _server = js_util.getProperty(device.nativeDevice, 'gatt');
+      await js_util.promiseToFuture(js_util.callMethod(_server, 'connect', []));
+      await exploreServices(device.nativeDevice);
 
-      await startNotifications(_characteristic);
-
-      _status = "Connected to device and notifications started";
+      _status = "Connected (check console for services/characteristics)";
     } catch (e) {
       _status = "Connection failed: $e";
+    }
+  }
+
+  Future<void> exploreServices(dynamic device) async {
+    try {
+      final gatt = js_util.getProperty(device, 'gatt');
+      final services = await js_util.promiseToFuture(
+        js_util.callMethod(gatt, 'getPrimaryServices', []),
+      );
+
+      for (var service in services) {
+        final serviceUuid = js_util.getProperty(service, 'uuid');
+        print("🔹 Service: $serviceUuid");
+
+        final characteristics = await js_util.promiseToFuture(
+          js_util.callMethod(service, 'getCharacteristics', []),
+        );
+
+        for (var char in characteristics) {
+          final charUuid = js_util.getProperty(char, 'uuid');
+          final props = js_util.getProperty(char, 'properties');
+          print("   ↳ Char: $charUuid | props: $props");
+        }
+      }
+    } catch (e) {
+      print("⚠️ exploreServices error: $e");
     }
   }
 
@@ -95,19 +126,15 @@ class BluetoothManagerImpl implements BluetoothManager {
     await js_util.promiseToFuture(
       js_util.callMethod(char, 'startNotifications', []),
     );
-
     _notificationListener = (html.Event event) {
       final jsObject = js_util.getProperty(event, 'target');
       final value = js_util.getProperty(jsObject, 'value');
-
       final buffer = js_util.getProperty(value, 'buffer');
       final bytes = Uint8List.view(buffer);
 
       final weight = String.fromCharCodes(bytes).trim();
-
       _weightController.add(weight);
     };
-
     js_util.callMethod(char, 'addEventListener', [
       'characteristicvaluechanged',
       _notificationListener,
@@ -126,8 +153,21 @@ class BluetoothManagerImpl implements BluetoothManager {
     await js_util.promiseToFuture(
       js_util.callMethod(char, 'stopNotifications', []),
     );
-
     await _weightController.close();
+  }
+
+  @override
+  Future<void> disconnect() async {
+    if (_server != null) {
+      try {
+        await js_util.promiseToFuture(
+          js_util.callMethod(_server, 'disconnect', []),
+        );
+        _status = "Disconnected from device";
+      } catch (e) {
+        _status = "Disconnection failed: $e";
+      }
+    }
   }
 
   @override
