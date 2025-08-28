@@ -120,35 +120,90 @@ class _Menu1PageState extends State<Menu1Page> {
   Future<void> connectToDevice(AppBluetoothDevice device) async {
     try {
       setState(() {
-        bluetoothStatus = "Connecting to ${device.name}";
-      });
-      await bluetoothManager.connectToDevice(device);
-
-      setState(() {
-        connectedDevice = device;
-        bluetoothStatus = "Connected to ${device.name}";
+        bluetoothStatus = "Menghubungkan ke ${device.name}...";
+        connectedDevice = null;
         esp32Weight = null;
       });
-      _notificationSubscription = bluetoothManager.weightStream.listen((
-        weightData,
-      ) {
-        debugPrint("📩 Data dari ESP32: '$weightData'");
-        try {
-          final weight = double.parse(weightData);
+      await bluetoothManager
+          .connectToDevice(device)
+          .timeout(
+            Duration(seconds: 10),
+            onTimeout: () {
+              throw TimeoutException("Gagal menghubungkan: Waktu tunggu habis");
+            },
+          );
+      await _notificationSubscription?.cancel();
+      _notificationSubscription = null;
+      _notificationSubscription = bluetoothManager.weightStream.listen(
+        (weightData) {
+          debugPrint("📩 Data dari ESP32: '$weightData'");
+          try {
+            final weight = double.parse(weightData);
+            if (mounted) {
+              setState(() {
+                esp32Weight = weight.toStringAsFixed(2);
+                bluetoothStatus =
+                    "Terhubung ke ${device.name} | Berat: ${esp32Weight} kg";
+              });
+            }
+          } catch (e) {
+            debugPrint("❌ Gagal parsing data: '$weightData', error: $e");
+            if (mounted) {
+              setState(() {
+                esp32Weight = null;
+                bluetoothStatus = "Data berat tidak valid dari ${device.name}";
+              });
+            }
+          }
+        },
+        onError: (error) {
+          debugPrint("❌ Error di weightStream: $error");
           if (mounted) {
             setState(() {
-              esp32Weight = weight.toStringAsFixed(2);
+              bluetoothStatus = "Error menerima data: $error";
             });
           }
-        } catch (e) {
-          debugPrint("❌ Gagal parsing data: '$weightData'");
-        }
-      });
+        },
+        onDone: () {
+          debugPrint("📴 Stream berat ditutup, kemungkinan perangkat terputus");
+          if (mounted) {
+            setState(() {
+              connectedDevice = null;
+              esp32Weight = null;
+              bluetoothStatus = "Perangkat terputus";
+            });
+          }
+        },
+      );
+      if (mounted) {
+        setState(() {
+          connectedDevice = device;
+          bluetoothStatus = "Terhubung ke ${device.name}";
+        });
+      }
     } catch (e) {
-      setState(() {
-        bluetoothStatus = "Failed to connect: $e";
-      });
-      debugPrint("Error connecting to device: $e");
+      debugPrint("❌ Error menghubungkan ke perangkat: $e");
+      if (mounted) {
+        setState(() {
+          connectedDevice = null;
+          esp32Weight = null;
+          bluetoothStatus = "Gagal menghubungkan: $e";
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Gagal menghubungkan ke ${device.name}: $e"),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        if (!e.toString().contains("User cancelled")) {
+          Future.delayed(Duration(seconds: 3), () {
+            if (mounted && connectedDevice == null) {
+              debugPrint("🔄 Mencoba reconnect ke ${device.name}");
+              connectToDevice(device);
+            }
+          });
+        }
+      }
     }
   }
 
