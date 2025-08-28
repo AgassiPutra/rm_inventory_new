@@ -8,6 +8,11 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../utils/auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:rm_inventory_new/ble/bluetooth_manager_web.dart' as web;
+import 'dart:html' as html;
+import '../ble/permission_handler.dart';
+import '../models/app_bluetooth_device.dart';
 
 class Menu1Page extends StatefulWidget {
   @override
@@ -22,7 +27,8 @@ class _Menu1PageState extends State<Menu1Page> {
   late TextEditingController produsenController;
   TextEditingController qtyPoController = TextEditingController();
   List<Map<String, dynamic>> suppliers = [];
-  StreamSubscription<List<int>>? _notificationSubscription;
+  StreamSubscription<String>? _notificationSubscription;
+  late web.BluetoothManagerWeb bluetoothManager;
 
   String? selectedUnit;
   String? selectedJenisRm;
@@ -40,8 +46,8 @@ class _Menu1PageState extends State<Menu1Page> {
   XFile? invoiceFile;
   XFile? suratJalanFile;
 
-  List<BluetoothDevice> foundDevices = [];
-  BluetoothDevice? connectedDevice;
+  List<AppBluetoothDevice> foundDevices = [];
+  AppBluetoothDevice? connectedDevice;
   String bluetoothStatus = "No scales found";
 
   @override
@@ -56,6 +62,7 @@ class _Menu1PageState extends State<Menu1Page> {
     shiftController = TextEditingController(text: 'Shift 2');
     qtyPoController = TextEditingController();
     produsenController = TextEditingController();
+    bluetoothManager = web.BluetoothManagerWeb();
     fetchSuppliers();
   }
 
@@ -66,6 +73,7 @@ class _Menu1PageState extends State<Menu1Page> {
     qtyPoController.dispose();
     produsenController.dispose();
     _notificationSubscription?.cancel();
+    bluetoothManager.dispose();
     super.dispose();
   }
 
@@ -82,30 +90,8 @@ class _Menu1PageState extends State<Menu1Page> {
     onPicked(image);
   }
 
-  Future<bool> requestBluetoothPermissions() async {
-    var locationStatus = await Permission.location.status;
-    if (!locationStatus.isGranted) {
-      locationStatus = await Permission.location.request();
-      if (!locationStatus.isGranted) return false;
-    }
-
-    var scanStatus = await Permission.bluetoothScan.status;
-    if (!scanStatus.isGranted) {
-      scanStatus = await Permission.bluetoothScan.request();
-      if (!scanStatus.isGranted) return false;
-    }
-
-    var connectStatus = await Permission.bluetoothConnect.status;
-    if (!connectStatus.isGranted) {
-      connectStatus = await Permission.bluetoothConnect.request();
-      if (!connectStatus.isGranted) return false;
-    }
-
-    return true;
-  }
-
   Future<void> scanForDevices() async {
-    bool granted = await requestBluetoothPermissions();
+    bool granted = await PermissionHelper.requestBluetoothPermissions();
     if (!granted) {
       setState(() {
         bluetoothStatus = "Permissions denied";
@@ -117,71 +103,52 @@ class _Menu1PageState extends State<Menu1Page> {
       foundDevices.clear();
       bluetoothStatus = "Scanning...";
     });
-    final subscription = FlutterBluePlus.scanResults.listen((results) {
-      for (ScanResult r in results) {
-        if (!foundDevices.any((d) => d.id == r.device.id)) {
-          setState(() {
-            foundDevices.add(r.device);
-          });
-        }
-      }
-    });
-    await FlutterBluePlus.startScan(timeout: Duration(seconds: 5));
 
-    await subscription.cancel();
+    await bluetoothManager.scanForDevices();
 
     setState(() {
-      if (foundDevices.isEmpty) {
-        bluetoothStatus = "No scales found";
-      } else {
-        bluetoothStatus = "Device(s) found";
-      }
+      foundDevices
+        ..clear()
+        ..addAll(bluetoothManager.foundDevices);
+
+      bluetoothStatus = bluetoothManager.foundDevices.isEmpty
+          ? "No scales found"
+          : "Device(s) found";
     });
   }
 
-  Future<void> connectToDevice(BluetoothDevice device) async {
+  Future<void> connectToDevice(AppBluetoothDevice device) async {
     try {
-      await device.connect(timeout: const Duration(seconds: 10));
+      setState(() {
+        bluetoothStatus = "Connecting to ${device.name}";
+      });
+      await bluetoothManager.connectToDevice(device);
+
       setState(() {
         connectedDevice = device;
         bluetoothStatus = "Connected to ${device.name}";
         esp32Weight = null;
       });
-
-      var services = await device.discoverServices();
-      for (var service in services) {
-        for (var characteristic in service.characteristics) {
-          if (characteristic.properties.notify) {
-            await characteristic.setNotifyValue(true);
-            _notificationSubscription = characteristic.value.listen((value) {
-              final weightData = String.fromCharCodes(value).trim();
-              debugPrint("📩 Data dari ESP32: '$weightData'");
-
-              try {
-                final weight = double.parse(weightData);
-                if (mounted) {
-                  setState(() {
-                    esp32Weight = weight.toStringAsFixed(2);
-                  });
-                }
-              } catch (e) {
-                debugPrint("❌ Gagal parsing data: '$weightData'");
-              }
+      _notificationSubscription = bluetoothManager.weightStream.listen((
+        weightData,
+      ) {
+        debugPrint("📩 Data dari ESP32: '$weightData'");
+        try {
+          final weight = double.parse(weightData);
+          if (mounted) {
+            setState(() {
+              esp32Weight = weight.toStringAsFixed(2);
             });
           }
+        } catch (e) {
+          debugPrint("❌ Gagal parsing data: '$weightData'");
         }
-      }
+      });
     } catch (e) {
-      if (e.toString().contains('already connected')) {
-        setState(() {
-          connectedDevice = device;
-          bluetoothStatus = "Already connected to ${device.name}";
-        });
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal terhubung: $e')));
-      }
+      setState(() {
+        bluetoothStatus = "Failed to connect: $e";
+      });
+      debugPrint("Error connecting to device: $e");
     }
   }
 
@@ -260,103 +227,131 @@ class _Menu1PageState extends State<Menu1Page> {
       ..fields['qty_po'] = qtyPo
       ..fields['supplier'] = selectedSupplier!
       ..fields['produsen'] = produsen;
-
-    if (invoiceFile != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'invoice_supplier',
-          invoiceFile!.path,
-          filename: invoiceFile!.path.split('/').last,
-        ),
-      );
-    }
-
-    if (suratJalanFile != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'surat_jalan',
-          suratJalanFile!.path,
-          filename: suratJalanFile!.path.split('/').last,
-        ),
-      );
-    }
-
-    final response = await request.send();
-    final resBody = await response.stream.bytesToString();
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final jsonRes = jsonDecode(resBody);
-      debugPrint("Raw Response Incoming-RM: $jsonRes");
-
-      final fakturBaru = jsonRes['data']?['faktur'];
-      lastSubmittedFaktur = fakturBaru;
-      debugPrint("Faktur baru: $fakturBaru");
-      final timbangUri = Uri.parse(
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
-      );
-
-      final timbangResponse = await http.post(
-        timbangUri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          "weight": "40.30",
-          "status": "Normal",
-          "type_rm": selectedJenisRm!,
-        }),
-      );
-
-      debugPrint("Raw Response POST Timbangan: ${timbangResponse.body}");
-      if (timbangResponse.statusCode != 200 &&
-          timbangResponse.statusCode != 201) {
-        debugPrint("Gagal POST Timbangan, proses dihentikan.");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal kirim timbangan: ${timbangResponse.body}'),
+    if (kIsWeb) {
+      if (invoiceFile != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'invoice_supplier',
+            await invoiceFile!.readAsBytes(),
+            filename: invoiceFile!.name,
           ),
         );
-        return;
       }
-      final getUri = Uri.parse(
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
-      );
 
-      final getResponse = await http.get(
-        getUri,
-        headers: {'Authorization': 'Bearer $token'},
-      );
+      if (suratJalanFile != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'surat_jalan',
+            await suratJalanFile!.readAsBytes(),
+            filename: suratJalanFile!.name,
+          ),
+        );
+      }
+    } else {
+      if (invoiceFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'invoice_supplier',
+            invoiceFile!.path,
+            filename: invoiceFile!.path.split('/').last,
+          ),
+        );
+      }
 
-      if (getResponse.statusCode == 200) {
-        final timbanganData = jsonDecode(getResponse.body);
+      if (suratJalanFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'surat_jalan',
+            suratJalanFile!.path,
+            filename: suratJalanFile!.path.split('/').last,
+          ),
+        );
+      }
+    }
 
-        if (timbanganData['success'] == true) {
-          final dataList = timbanganData['data'] as List;
-          if (dataList.isNotEmpty) {
-            final fakturMap = dataList.first as Map<String, dynamic>;
-            final fakturKey = fakturMap.keys.first;
-            final listTimbang = fakturMap[fakturKey] as List;
+    try {
+      final response = await request.send();
+      final resBody = await response.stream.bytesToString();
 
-            debugPrint("📦 Faktur: $fakturKey");
-            for (var item in listTimbang) {
-              debugPrint(
-                "⏰ ${item['date_time']} | 🐓 ${item['type_rm']} | ⚖️ ${item['weight']} Kg | ${item['status']}",
-              );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonRes = jsonDecode(resBody);
+        debugPrint("Raw Response Incoming-RM: $jsonRes");
+
+        final fakturBaru = jsonRes['data']?['faktur'];
+        lastSubmittedFaktur = fakturBaru;
+        debugPrint("Faktur baru: $fakturBaru");
+        final timbangUri = Uri.parse(
+          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+        );
+
+        final timbangResponse = await http.post(
+          timbangUri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            "weight": "40.30",
+            "status": "Normal",
+            "type_rm": selectedJenisRm!,
+          }),
+        );
+
+        debugPrint("Raw Response POST Timbangan: ${timbangResponse.body}");
+        if (timbangResponse.statusCode != 200 &&
+            timbangResponse.statusCode != 201) {
+          debugPrint("Gagal POST Timbangan, proses dihentikan.");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal kirim timbangan: ${timbangResponse.body}'),
+            ),
+          );
+          return;
+        }
+        final getUri = Uri.parse(
+          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+        );
+
+        final getResponse = await http.get(
+          getUri,
+          headers: {'Authorization': 'Bearer $token'},
+        );
+
+        if (getResponse.statusCode == 200) {
+          final timbanganData = jsonDecode(getResponse.body);
+
+          if (timbanganData['success'] == true) {
+            final dataList = timbanganData['data'] as List;
+            if (dataList.isNotEmpty) {
+              final fakturMap = dataList.first as Map<String, dynamic>;
+              final fakturKey = fakturMap.keys.first;
+              final listTimbang = fakturMap[fakturKey] as List;
+
+              debugPrint("📦 Faktur: $fakturKey");
+              for (var item in listTimbang) {
+                debugPrint(
+                  "⏰ ${item['date_time']} | 🐓 ${item['type_rm']} | ⚖️ ${item['weight']} Kg | ${item['status']}",
+                );
+              }
             }
           }
+        } else {
+          debugPrint("Gagal GET Timbangan: ${getResponse.body}");
         }
-      } else {
-        debugPrint("Gagal GET Timbangan: ${getResponse.body}");
-      }
 
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Data berhasil dikirim')));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal kirim: $resBody')));
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Data berhasil dikirim')));
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal kirim: $resBody')));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -371,35 +366,6 @@ class _Menu1PageState extends State<Menu1Page> {
       suratJalanFile = null;
       currentTimeController.text = currentTime;
     });
-  }
-
-  Future<void> submitTimbangan(String faktur, String token) async {
-    final uri = Uri.parse(
-      'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$faktur',
-    );
-
-    final body = {
-      "weight": "40.30",
-      "status": "normal",
-      "type_rm": "Boneless Dada (BLD)",
-    };
-
-    final response = await http.post(
-      uri,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
-      body: jsonEncode(body),
-    );
-
-    debugPrint("Raw Response POST Timbangan: ${response.body}");
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      debugPrint("✅ Timbangan berhasil dikirim");
-    } else {
-      debugPrint("❌ Gagal kirim timbangan: ${response.body}");
-    }
   }
 
   @override
@@ -956,47 +922,53 @@ class _Menu1PageState extends State<Menu1Page> {
           ),
         ),
         SizedBox(height: 32),
-        if (bluetoothStatus == "Scanning...")
-          CircularProgressIndicator()
-        else if (bluetoothStatus == "Device(s) found" &&
-            foundDevices.isNotEmpty)
-          Column(
-            children: foundDevices.map((device) {
-              return ListTile(
-                title: Text(
-                  device.name.isNotEmpty ? device.name : device.id.toString(),
-                ),
-                subtitle: Text(device.id.toString()),
-                trailing: ElevatedButton(
-                  onPressed: () => connectToDevice(device),
-                  child: Text('Connect'),
-                ),
-              );
-            }).toList(),
-          )
-        else
-          Column(
-            children: [
-              Icon(Icons.bluetooth_disabled, size: 48, color: Colors.grey[400]),
-              SizedBox(height: 8),
-              Text(
-                bluetoothStatus,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Colors.grey[700],
-                ),
+        bluetoothStatus == "Scanning..."
+            ? CircularProgressIndicator()
+            : (bluetoothStatus == "Device(s) found" && foundDevices.isNotEmpty)
+            ? Column(
+                children: foundDevices.map((device) {
+                  return ListTile(
+                    title: Text(
+                      device.name.isNotEmpty ? device.name : device.id,
+                    ),
+                    subtitle: Text(device.id),
+                    trailing: ElevatedButton(
+                      onPressed: () => connectToDevice(device),
+                      child: Text('Connect'),
+                    ),
+                  );
+                }).toList(),
+              )
+            : Column(
+                children: [
+                  Icon(
+                    Icons.bluetooth_disabled,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    bluetoothStatus,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  connectedDevice != null && esp32Weight != null
+                      ? Text(
+                          'Weight: $esp32Weight Kg',
+                          style: TextStyle(fontSize: 16),
+                        )
+                      : SizedBox.shrink(),
+                  Text(
+                    'Make sure your ESP32 scale is powered on and within range',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              SizedBox(height: 4),
-              if (connectedDevice != null && esp32Weight != null)
-                Text('Weight: $esp32Weight Kg', style: TextStyle(fontSize: 16)),
-              Text(
-                'Make sure your ESP32 scale is powered on and within range',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
       ],
     );
   }
