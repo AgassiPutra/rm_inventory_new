@@ -124,6 +124,7 @@ class _Menu1PageState extends State<Menu1Page> {
         connectedDevice = null;
         esp32Weight = null;
       });
+
       await bluetoothManager
           .connectToDevice(device)
           .timeout(
@@ -132,8 +133,10 @@ class _Menu1PageState extends State<Menu1Page> {
               throw TimeoutException("Gagal menghubungkan: Waktu tunggu habis");
             },
           );
+
       await _notificationSubscription?.cancel();
       _notificationSubscription = null;
+
       _notificationSubscription = bluetoothManager.weightStream.listen(
         (weightData) {
           debugPrint("📩 Data dari ESP32: '$weightData'");
@@ -172,9 +175,16 @@ class _Menu1PageState extends State<Menu1Page> {
               esp32Weight = null;
               bluetoothStatus = "Perangkat terputus";
             });
+            Future.delayed(Duration(seconds: 3), () {
+              if (mounted && connectedDevice == null) {
+                debugPrint("🔄 Mencoba reconnect ke ${device.name}");
+                connectToDevice(device);
+              }
+            });
           }
         },
       );
+
       if (mounted) {
         setState(() {
           connectedDevice = device;
@@ -195,6 +205,7 @@ class _Menu1PageState extends State<Menu1Page> {
             duration: Duration(seconds: 3),
           ),
         );
+
         if (!e.toString().contains("User cancelled")) {
           Future.delayed(Duration(seconds: 3), () {
             if (mounted && connectedDevice == null) {

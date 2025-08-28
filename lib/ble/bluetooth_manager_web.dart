@@ -27,10 +27,10 @@ class BluetoothManagerWeb implements BluetoothManager {
 
   @override
   Future<void> scanForDevices() async {
-    _status = 'Requesting device...';
+    _status = 'Mencari perangkat...';
     if (bluetooth == null) {
-      _status = 'Web Bluetooth not supported in this browser';
-      print('Error: Web Bluetooth not supported');
+      _status = 'Web Bluetooth tidak didukung di browser ini';
+      print('Error: Web Bluetooth tidak didukung');
       return;
     }
 
@@ -40,21 +40,19 @@ class BluetoothManagerWeb implements BluetoothManager {
           js_util.jsify({
             'filters': [
               {
-                'services': ['0000181d-0000-1000-8000-00805f9b34fb'],
+                'services': ['cd5cac32-0548-437b-b273-e0bf0d372110'],
               },
             ],
-            'optionalServices': ['0000181d-0000-1000-8000-00805f9b34fb'],
+            'optionalServices': ['cd5cac32-0548-437b-b273-e0bf0d372110'],
           }),
         ]),
       );
 
       if (device != null) {
         _foundDevices.clear();
-
         final deviceId = js_util.getProperty(device, 'id') as String;
         final deviceName =
             (js_util.getProperty(device, 'name') ?? 'Unnamed') as String;
-
         _foundDevices.add(
           AppBluetoothDevice(
             id: deviceId,
@@ -62,14 +60,13 @@ class BluetoothManagerWeb implements BluetoothManager {
             nativeDevice: device,
           ),
         );
-
-        _status = 'Device found: $deviceName';
+        _status = 'Perangkat ditemukan: $deviceName';
         _device = device;
       } else {
-        _status = 'No device selected or permission denied';
+        _status = 'Tidak ada perangkat dipilih atau izin ditolak';
       }
     } catch (e) {
-      _status = 'Error during device request: $e';
+      _status = 'Error saat mencari perangkat: $e';
       print('Scan error: $e');
     }
   }
@@ -107,7 +104,7 @@ class BluetoothManagerWeb implements BluetoothManager {
         print("🔹 Service: $serviceUuid");
 
         if (serviceUuid.toLowerCase() ==
-            '0000181d-0000-1000-8000-00805f9b34fb') {
+            'cd5cac32-0548-437b-b273-e0bf0d372110') {
           final characteristics = await js_util.promiseToFuture(
             js_util.callMethod(service, 'getCharacteristics', []),
           );
@@ -119,10 +116,10 @@ class BluetoothManagerWeb implements BluetoothManager {
             print("   ↳ Char: $charUuid | Notify: $canNotify");
 
             if (charUuid.toLowerCase() ==
-                    '00002a9d-0000-1000-8000-00805f9b34fb' &&
+                    'bb0c63ff-6916-4c89-b62e-a2b090c78601' &&
                 canNotify) {
               _characteristic = char;
-              print("Attempting to start notifications for $charUuid");
+              print("Mencoba mengaktifkan notifikasi untuk $charUuid");
               await startNotifications(_characteristic);
             }
           }
@@ -147,14 +144,9 @@ class BluetoothManagerWeb implements BluetoothManager {
         final buffer = js_util.getProperty(value, 'buffer');
         final bytes = Uint8List.view(buffer);
 
-        if (bytes.length >= 3) {
-          int weightRaw = (bytes[2] << 8) | bytes[1];
-          double weight = weightRaw * 0.01;
-          print("📩 Data diterima: $weight kg");
-          _weightController.add(weight.toStringAsFixed(2));
-        } else {
-          print("⚠️ Panjang data tidak valid: ${bytes.length}");
-        }
+        final weight = String.fromCharCodes(bytes).trim();
+        print("📩 Data diterima: $weight kg");
+        _weightController.add(weight);
       };
       js_util.callMethod(char, 'addEventListener', [
         'characteristicvaluechanged',
@@ -175,14 +167,10 @@ class BluetoothManagerWeb implements BluetoothManager {
         );
         final buffer = js_util.getProperty(value, 'buffer');
         final bytes = Uint8List.view(buffer);
-        if (bytes.length >= 3) {
-          int weightRaw = (bytes[2] << 8) | bytes[1];
-          double weight = weightRaw * 0.01;
-          print("📩 Data dari polling: $weight kg");
-          _weightController.add(weight.toStringAsFixed(2));
-        } else {
-          print("⚠️ Panjang data tidak valid: ${bytes.length}");
-        }
+
+        final weight = String.fromCharCodes(bytes).trim();
+        print("📩 Data dari polling: $weight kg");
+        _weightController.add(weight);
       } catch (e) {
         print("⚠️ Polling error: $e");
       }
