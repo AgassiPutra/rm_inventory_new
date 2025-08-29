@@ -40,6 +40,7 @@ class _Menu1PageState extends State<Menu1Page> {
   String? selectedStatusPenerimaan = 'Normal';
   String? selectedTipeRM;
   String? lastSubmittedFaktur;
+  double? receivedWeight;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -877,14 +878,21 @@ class _Menu1PageState extends State<Menu1Page> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  '3.97 kg',
+                  receivedWeight != null
+                      ? '${receivedWeight!.toStringAsFixed(2)} kg'
+                      : '- kg',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
-                    color: Colors.green[900],
+                    color: receivedWeight != null && receivedWeight! < 0
+                        ? Colors.red
+                        : Colors.green[900],
                   ),
                 ),
-                Text('(1 readings)', style: TextStyle(color: Colors.grey[700])),
+                Text(
+                  '(1 reading${receivedWeight != null ? 's' : ''})',
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
               ],
             ),
           ),
@@ -901,6 +909,9 @@ class _Menu1PageState extends State<Menu1Page> {
                 );
                 return;
               }
+              setState(() {
+                receivedWeight = double.tryParse(esp32Weight ?? '');
+              });
 
               final token = await getToken();
               if (token == null || token.isEmpty) {
