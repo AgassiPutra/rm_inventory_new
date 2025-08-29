@@ -900,7 +900,7 @@ class _Menu1PageState extends State<Menu1Page> {
                   'Content-Type': 'application/json',
                 },
                 body: jsonEncode({
-                  "weight": parsedWeight,
+                  "weight": parsedWeight.toStringAsFixed(2),
                   "status": selectedStatusPenerimaan,
                   "type_rm": selectedTipeRM,
                 }),
