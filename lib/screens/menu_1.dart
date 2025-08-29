@@ -37,7 +37,7 @@ class _Menu1PageState extends State<Menu1Page> {
   String produsen = '';
   String? esp32Weight;
   bool _showScaleConnection = false;
-  String? selectedStatusPenerimaan = 'Normal';
+  String? selectedStatusPenerimaan;
   String? selectedTipeRM;
   String? lastSubmittedFaktur;
   double? receivedWeight;
