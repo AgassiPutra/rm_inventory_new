@@ -541,9 +541,7 @@ class _Menu1PageState extends State<Menu1Page> {
                 border: OutlineInputBorder(),
               ),
               items: [
-                'CK1',
                 'CK2',
-                'CK3',
               ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (v) {
                 setState(() {
@@ -757,9 +755,7 @@ class _Menu1PageState extends State<Menu1Page> {
   }
 
   Widget _buildConnectedScaleUI() {
-    double? weight = esp32Weight is double
-        ? esp32Weight as double
-        : double.tryParse(esp32Weight.toString());
+    double? weight = esp32Weight != null ? double.tryParse(esp32Weight!) : null;
 
     return Container(
       padding: EdgeInsets.all(16),
@@ -826,11 +822,12 @@ class _Menu1PageState extends State<Menu1Page> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
-                    color: receivedWeight != null && receivedWeight! < 0
+                    color: (receivedWeight ?? 0) < 0
                         ? Colors.red
                         : Colors.green[900],
                   ),
                 ),
+
                 Text(
                   '(1 reading${receivedWeight != null ? 's' : ''})',
                   style: TextStyle(color: Colors.grey[700]),
