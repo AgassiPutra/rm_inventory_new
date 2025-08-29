@@ -294,6 +294,7 @@ class _Menu1PageState extends State<Menu1Page> {
       ..fields['qty_po'] = qtyPo
       ..fields['supplier'] = selectedSupplier!
       ..fields['produsen'] = produsen;
+
     if (kIsWeb) {
       if (invoiceFile != null) {
         request.files.add(
@@ -346,65 +347,6 @@ class _Menu1PageState extends State<Menu1Page> {
 
         final fakturBaru = jsonRes['data']?['faktur'];
         lastSubmittedFaktur = fakturBaru;
-        debugPrint("Faktur baru: $fakturBaru");
-        final timbangUri = Uri.parse(
-          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
-        );
-
-        final timbangResponse = await http.post(
-          timbangUri,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            "weight": "40.30",
-            "status": "Normal",
-            "type_rm": selectedJenisRm!,
-          }),
-        );
-
-        debugPrint("Raw Response POST Timbangan: ${timbangResponse.body}");
-        if (timbangResponse.statusCode != 200 &&
-            timbangResponse.statusCode != 201) {
-          debugPrint("Gagal POST Timbangan, proses dihentikan.");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal kirim timbangan: ${timbangResponse.body}'),
-            ),
-          );
-          return;
-        }
-        final getUri = Uri.parse(
-          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
-        );
-
-        final getResponse = await http.get(
-          getUri,
-          headers: {'Authorization': 'Bearer $token'},
-        );
-
-        if (getResponse.statusCode == 200) {
-          final timbanganData = jsonDecode(getResponse.body);
-
-          if (timbanganData['success'] == true) {
-            final dataList = timbanganData['data'] as List;
-            if (dataList.isNotEmpty) {
-              final fakturMap = dataList.first as Map<String, dynamic>;
-              final fakturKey = fakturMap.keys.first;
-              final listTimbang = fakturMap[fakturKey] as List;
-
-              debugPrint("📦 Faktur: $fakturKey");
-              for (var item in listTimbang) {
-                debugPrint(
-                  "⏰ ${item['date_time']} | 🐓 ${item['type_rm']} | ⚖️ ${item['weight']} Kg | ${item['status']}",
-                );
-              }
-            }
-          }
-        } else {
-          debugPrint("Gagal GET Timbangan: ${getResponse.body}");
-        }
 
         ScaffoldMessenger.of(
           context,
@@ -909,8 +851,17 @@ class _Menu1PageState extends State<Menu1Page> {
                 );
                 return;
               }
+
+              final parsedWeight = double.tryParse(esp32Weight ?? '');
+              if (parsedWeight == null) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Berat tidak valid')));
+                return;
+              }
+
               setState(() {
-                receivedWeight = double.tryParse(esp32Weight ?? '');
+                receivedWeight = parsedWeight;
               });
 
               final token = await getToken();
@@ -949,7 +900,7 @@ class _Menu1PageState extends State<Menu1Page> {
                   'Content-Type': 'application/json',
                 },
                 body: jsonEncode({
-                  "weight": esp32Weight,
+                  "weight": parsedWeight,
                   "status": selectedStatusPenerimaan,
                   "type_rm": selectedTipeRM,
                 }),
@@ -969,6 +920,7 @@ class _Menu1PageState extends State<Menu1Page> {
                 );
               }
             },
+
             icon: Icon(Icons.download),
             label: Text('Receive'),
             style: ElevatedButton.styleFrom(
