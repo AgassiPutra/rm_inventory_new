@@ -4,7 +4,6 @@ import 'dart:html' as html;
 import 'dart:js_util' as js_util;
 import '../models/app_bluetooth_device.dart';
 import 'bluetooth_manager.dart';
-import 'package:js/js.dart';
 
 class BluetoothManagerWeb implements BluetoothManager {
   final bluetooth = js_util.getProperty(html.window.navigator, 'bluetooth');
@@ -15,7 +14,6 @@ class BluetoothManagerWeb implements BluetoothManager {
   dynamic _device;
   dynamic _server;
   dynamic _characteristic;
-  dynamic get characteristic => _characteristic;
   html.EventListener? _notificationListener;
 
   @override
@@ -140,7 +138,7 @@ class BluetoothManagerWeb implements BluetoothManager {
       print(
         "Notifikasi berhasil diaktifkan untuk ${js_util.getProperty(char, 'uuid')}",
       );
-      _notificationListener = allowInterop((html.Event event) {
+      _notificationListener = (html.Event event) {
         final jsObject = js_util.getProperty(event, 'target');
         final value = js_util.getProperty(jsObject, 'value');
         final buffer = js_util.getProperty(value, 'buffer');
@@ -149,22 +147,19 @@ class BluetoothManagerWeb implements BluetoothManager {
         final weight = String.fromCharCodes(bytes).trim();
         print("📩 Data diterima: $weight kg");
         _weightController.add(weight);
-
-        print("Bytes: $bytes");
-      });
+      };
       js_util.callMethod(char, 'addEventListener', [
         'characteristicvaluechanged',
         _notificationListener,
       ]);
-      print("Notifikasi listener ditambahkan.");
     } catch (e) {
       print("⚠️ Error startNotifications: $e");
       _status = "Notifikasi tidak didukung, mencoba baca manual...";
-      startPolling(char);
+      _startPolling(char);
     }
   }
 
-  void startPolling(dynamic char) {
+  void _startPolling(dynamic char) {
     Timer.periodic(Duration(seconds: 2), (timer) async {
       try {
         final value = await js_util.promiseToFuture(
@@ -178,9 +173,6 @@ class BluetoothManagerWeb implements BluetoothManager {
         _weightController.add(weight);
       } catch (e) {
         print("⚠️ Polling error: $e");
-        if (e.toString().contains('GATT operation already in progress')) {
-          await Future.delayed(Duration(milliseconds: 500));
-        }
       }
     });
   }
