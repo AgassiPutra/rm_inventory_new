@@ -102,8 +102,8 @@ class _Menu3PageState extends State<Menu3Page> {
     String? jenisRm = data?['jenis_rm'] as String?;
     String? jenisAyam = data?['jenis_ayam'] as String?;
     String? satuan = data?['satuan'] as String?;
-    const jenisRmOptions = ['Wet Chicken', 'Dry', 'Sayuran', 'Ice'];
-    const jenisAyamOptions = ['Fresh Wet Chicken', 'Frozen Chicken', 'Other'];
+    const jenisRmOptions = ['WET CHICKEN', 'DRY', 'SAYURAN', 'ICE'];
+    const jenisAyamOptions = ['FRESH WET CHICKEN', 'FROZEN CHICKEN', 'OTHER'];
     const satuanOptions = ['Kg', 'Karton', 'Bak', 'Pack', 'Jerrycan'];
 
     final formKey = GlobalKey<FormState>();
@@ -120,7 +120,6 @@ class _Menu3PageState extends State<Menu3Page> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Jenis RM
                     DropdownButtonFormField<String>(
                       value: jenisRm,
                       items: jenisRmOptions
@@ -131,7 +130,7 @@ class _Menu3PageState extends State<Menu3Page> {
                       onChanged: (v) {
                         setStateSB(() {
                           jenisRm = v;
-                          if (jenisRm != 'Wet Chicken') jenisAyam = null;
+                          if (jenisRm != 'WET CHICKEN') jenisAyam = null;
                         });
                       },
                       decoration: const InputDecoration(
@@ -142,7 +141,7 @@ class _Menu3PageState extends State<Menu3Page> {
                           (v == null || v.isEmpty) ? 'Pilih jenis RM' : null,
                     ),
                     const SizedBox(height: 12),
-                    if (jenisRm == 'Wet Chicken') ...[
+                    if (jenisRm == 'WET CHICKEN') ...[
                       DropdownButtonFormField<String>(
                         value: jenisAyam,
                         items: jenisAyamOptions
@@ -156,7 +155,7 @@ class _Menu3PageState extends State<Menu3Page> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (v) =>
-                            (jenisRm == 'Wet Chicken' &&
+                            (jenisRm == 'WET CHICKEN' &&
                                 (v == null || v.isEmpty))
                             ? 'Pilih jenis ayam'
                             : null,
@@ -244,7 +243,7 @@ class _Menu3PageState extends State<Menu3Page> {
                     'nama_pabrik': pabrikC.text.trim(),
                     'satuan': satuan ?? 'Kg',
                     'jenis_rm': jenisRm ?? '',
-                    'jenis_ayam': (jenisRm == 'Wet Chicken')
+                    'jenis_ayam': (jenisRm == 'WET CHICKEN')
                         ? (jenisAyam ?? '')
                         : '',
                   };
@@ -331,7 +330,7 @@ class _Menu3PageState extends State<Menu3Page> {
             backgroundColor: Colors.green,
           ),
         );
-        fetchSuppliers(); // refresh data
+        fetchSuppliers();
       } else {
         print('Status Code: ${response.statusCode}');
         print('Response Body: ${response.body}');
@@ -470,22 +469,19 @@ class AddSupplierPage extends StatefulWidget {
 
 class _AddSupplierPageState extends State<AddSupplierPage> {
   final _formKey = GlobalKey<FormState>();
-
-  // field controllers
   final TextEditingController _kodeSupplierC = TextEditingController();
   final TextEditingController _supplierC = TextEditingController();
   final TextEditingController _pabrikC = TextEditingController();
 
-  // dropdown values
-  String? _jenisRm; // contoh: "Wet Chicken"
-  String? _satuan; // contoh: "Kg"
-  String? _jenisAyam; // contoh: "Fresh Wet Chicken"
+  String? _jenisRm;
+  String? _satuan;
+  String? _jenisAyam;
 
   final List<String> jenisRmOptions = const [
-    'Wet Chicken',
-    'Dry',
-    'Sayuran',
-    'Ice',
+    'WET CHICKEN',
+    'DRY',
+    'SAYURAN',
+    'ICE',
   ];
 
   final List<String> satuanOptions = const [
@@ -497,9 +493,9 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
   ];
 
   final List<String> jenisAyamOptions = const [
-    'Fresh Wet Chicken',
-    'Frozen Chicken',
-    'Other',
+    'FRESH WET CHICKEN',
+    'FROZEN CHICKEN',
+    'OTHER',
   ];
 
   Future<String?> _getToken() async {
@@ -546,7 +542,7 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Supplier berhasil dibuat')),
         );
-        Navigator.pop(context, true); // -> kembali & trigger refresh
+        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal membuat supplier (${res.statusCode})')),
@@ -584,7 +580,6 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
           key: _formKey,
           child: Column(
             children: [
-              // Jenis RM
               DropdownButtonFormField<String>(
                 value: _jenisRm,
                 items: jenisRmOptions
@@ -599,9 +594,7 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
                     (v == null || v.isEmpty) ? 'Pilih jenis RM' : null,
               ),
               const SizedBox(height: 12),
-
-              // Jenis Ayam (jika Wet Chicken)
-              if (_jenisRm == 'Wet Chicken') ...[
+              if (_jenisRm == 'WET CHICKEN') ...[
                 DropdownButtonFormField<String>(
                   value: _jenisAyam,
                   items: jenisAyamOptions
@@ -617,8 +610,6 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-
-              // Supplier
               TextFormField(
                 controller: _supplierC,
                 decoration: const InputDecoration(
@@ -629,8 +620,6 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
                     (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 12),
-
-              // Produsen
               TextFormField(
                 controller: _pabrikC,
                 decoration: const InputDecoration(
@@ -641,8 +630,6 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
                     (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 12),
-
-              // Satuan
               DropdownButtonFormField<String>(
                 value: _satuan,
                 items: satuanOptions
@@ -657,8 +644,6 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
                     (v == null || v.isEmpty) ? 'Pilih satuan' : null,
               ),
               const SizedBox(height: 12),
-
-              // Kode Supplier
               TextFormField(
                 controller: _kodeSupplierC,
                 decoration: const InputDecoration(
@@ -669,8 +654,6 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
                     (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 24),
-
-              // Button submit
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
