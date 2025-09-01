@@ -52,7 +52,7 @@ class _Menu2PageState extends State<Menu2Page> {
         final unitMatch =
             unit.isEmpty || row['unit']!.toLowerCase().contains(unit);
         final typeMatch =
-            type.isEmpty || row['type']!.toLowerCase().contains(type);
+            type.isEmpty || row['jenis_rm']!.toLowerCase().contains(type);
         final supplierMatch =
             supplier.isEmpty ||
             row['supplier']!.toLowerCase().contains(supplier);
@@ -142,7 +142,7 @@ class _Menu2PageState extends State<Menu2Page> {
               TextField(
                 controller: typeController,
                 decoration: InputDecoration(
-                  labelText: 'Type',
+                  labelText: 'Jenis RM',
                   prefixIcon: Icon(Icons.category),
                 ),
               ),
@@ -179,7 +179,7 @@ class _Menu2PageState extends State<Menu2Page> {
   void _showEditDialog(Map<String, dynamic> rowData) {
     fakturController.text = rowData['faktur'] ?? '';
     unitController.text = rowData['unit'] ?? '';
-    typeController.text = rowData['type'] ?? '';
+    typeController.text = rowData['jenis_rm'] ?? '';
     supplierController.text = rowData['supplier'] ?? '';
 
     showDialog(
@@ -199,7 +199,7 @@ class _Menu2PageState extends State<Menu2Page> {
               ),
               TextField(
                 controller: typeController,
-                decoration: InputDecoration(labelText: 'Type'),
+                decoration: InputDecoration(labelText: 'Jenis RM'),
               ),
               TextField(
                 controller: supplierController,
@@ -218,7 +218,7 @@ class _Menu2PageState extends State<Menu2Page> {
               setState(() {
                 rowData['faktur'] = fakturController.text;
                 rowData['unit'] = unitController.text;
-                rowData['type'] = typeController.text;
+                rowData['jenis_rm'] = typeController.text;
                 rowData['supplier'] = supplierController.text;
                 applyFilter();
               });
@@ -273,7 +273,7 @@ class _Menu2PageState extends State<Menu2Page> {
                           columns: [
                             DataColumn(label: Text('Faktur')),
                             DataColumn(label: Text('Unit')),
-                            DataColumn(label: Text('Type')),
+                            DataColumn(label: Text('Jenis RM')),
                             DataColumn(label: Text('Supplier')),
                             DataColumn(label: Text('Action')),
                           ],
@@ -282,7 +282,7 @@ class _Menu2PageState extends State<Menu2Page> {
                               cells: [
                                 DataCell(Text(row['faktur'] ?? '')),
                                 DataCell(Text(row['unit'] ?? '')),
-                                DataCell(Text(row['type'] ?? '')),
+                                DataCell(Text(row['jenis_rm'] ?? '')),
                                 DataCell(Text(row['supplier'] ?? '')),
                                 DataCell(
                                   IconButton(
