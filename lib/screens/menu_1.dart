@@ -135,6 +135,10 @@ class _Menu1PageState extends State<Menu1Page> {
               throw TimeoutException("Gagal menghubungkan: Waktu tunggu habis");
             },
           );
+      await bluetoothManager.stopNotifications(bluetoothManager.characteristic);
+      bluetoothManager.startPolling(bluetoothManager.characteristic);
+
+      bluetoothManager.startPolling(bluetoothManager.characteristic);
 
       await _notificationSubscription?.cancel();
       _notificationSubscription = null;

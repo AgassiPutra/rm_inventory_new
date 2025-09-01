@@ -15,6 +15,7 @@ class BluetoothManagerWeb implements BluetoothManager {
   dynamic _device;
   dynamic _server;
   dynamic _characteristic;
+  dynamic get characteristic => _characteristic;
   html.EventListener? _notificationListener;
 
   @override
@@ -159,11 +160,11 @@ class BluetoothManagerWeb implements BluetoothManager {
     } catch (e) {
       print("⚠️ Error startNotifications: $e");
       _status = "Notifikasi tidak didukung, mencoba baca manual...";
-      _startPolling(char);
+      startPolling(char);
     }
   }
 
-  void _startPolling(dynamic char) {
+  void startPolling(dynamic char) {
     Timer.periodic(Duration(seconds: 2), (timer) async {
       try {
         final value = await js_util.promiseToFuture(
@@ -177,6 +178,9 @@ class BluetoothManagerWeb implements BluetoothManager {
         _weightController.add(weight);
       } catch (e) {
         print("⚠️ Polling error: $e");
+        if (e.toString().contains('GATT operation already in progress')) {
+          await Future.delayed(Duration(milliseconds: 500));
+        }
       }
     });
   }
