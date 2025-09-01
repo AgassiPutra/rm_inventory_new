@@ -29,6 +29,7 @@ class _Menu1PageState extends State<Menu1Page> {
   List<Map<String, dynamic>> suppliers = [];
   StreamSubscription<String>? _notificationSubscription;
   late web.BluetoothManagerWeb bluetoothManager;
+  List<Map<String, dynamic>> receivedList = [];
 
   String? selectedUnit;
   String? selectedJenisRm;
@@ -827,9 +828,8 @@ class _Menu1PageState extends State<Menu1Page> {
                         : Colors.green[900],
                   ),
                 ),
-
                 Text(
-                  '(1 reading${receivedWeight != null ? 's' : ''})',
+                  '(${receivedList.length} reading${receivedList.length > 1 ? 's' : ''})',
                   style: TextStyle(color: Colors.grey[700]),
                 ),
               ],
@@ -907,6 +907,15 @@ class _Menu1PageState extends State<Menu1Page> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Data timbangan berhasil dikirim')),
                 );
+
+                setState(() {
+                  receivedList.add({
+                    "weight": parsedWeight.toStringAsFixed(2),
+                    "status": selectedStatusPenerimaan,
+                    "type_rm": selectedTipeRM,
+                    "time": DateTime.now().toString(),
+                  });
+                });
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -927,6 +936,34 @@ class _Menu1PageState extends State<Menu1Page> {
               minimumSize: Size(double.infinity, 48),
             ),
           ),
+          if (receivedList.isNotEmpty) ...[
+            SizedBox(height: 20),
+            Text(
+              "Riwayat Penerimaan",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            DataTable(
+              columns: const [
+                DataColumn(label: Text("No")),
+                DataColumn(label: Text("Berat (kg)")),
+                DataColumn(label: Text("Status")),
+                DataColumn(label: Text("Tipe RM")),
+                DataColumn(label: Text("Waktu")),
+              ],
+              rows: List.generate(receivedList.length, (index) {
+                final row = receivedList[index];
+                return DataRow(
+                  cells: [
+                    DataCell(Text("${index + 1}")),
+                    DataCell(Text(row["weight"])),
+                    DataCell(Text(row["status"] ?? "-")),
+                    DataCell(Text(row["type_rm"] ?? "-")),
+                    DataCell(Text(row["time"])),
+                  ],
+                );
+              }),
+            ),
+          ],
         ],
       ),
     );
