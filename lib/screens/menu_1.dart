@@ -80,11 +80,11 @@ class _Menu1PageState extends State<Menu1Page> {
   }
 
   final Map<String, List<String>> tipeRMOptions = {
-    'Wet Chicken': ['Boneless Dada (BLD)', 'Boneless Paha Kulit (BLPK)'],
-    'Sayuran': ['Wortel', 'Bawang', 'Jamur'],
-    'Dry': ['Bumbu', 'Tepung', 'Lainnya'],
-    'Ice': ['Es Batu', 'Ice Cube'],
-    'Udang': ['Udang Fresh', 'Udang Beku'],
+    'WET CHICKEN': ['Boneless Dada (BLD)', 'Boneless Paha Kulit (BLPK)'],
+    'SAYURAN': ['Wortel', 'Bawang', 'Jamur'],
+    'DRY': ['Bumbu', 'Tepung', 'Lainnya'],
+    'ICE': ['Es Batu', 'Ice Cube'],
+    'UDANG': ['Udang Fresh', 'Udang Beku'],
   };
 
   Future<void> _pickImage(Function(XFile?) onPicked) async {
@@ -114,7 +114,7 @@ class _Menu1PageState extends State<Menu1Page> {
         ..addAll(bluetoothManager.foundDevices);
 
       bluetoothStatus = bluetoothManager.foundDevices.isEmpty
-          ? "No scales found"
+          ? bluetoothManager.status
           : "Device(s) found";
     });
   }
@@ -208,14 +208,12 @@ class _Menu1PageState extends State<Menu1Page> {
           ),
         );
 
-        if (!e.toString().contains("User cancelled")) {
-          Future.delayed(Duration(seconds: 3), () {
-            if (mounted && connectedDevice == null) {
-              debugPrint("🔄 Mencoba reconnect ke ${device.name}");
-              connectToDevice(device);
-            }
-          });
-        }
+        Future.delayed(Duration(seconds: 3), () {
+          if (mounted && connectedDevice == null) {
+            debugPrint("🔄 Mencoba reconnect ke ${device.name}");
+            connectToDevice(device);
+          }
+        });
       }
     }
   }
@@ -557,10 +555,10 @@ class _Menu1PageState extends State<Menu1Page> {
                 border: OutlineInputBorder(),
               ),
               items: [
-                'Wet Chicken',
-                'Sayuran',
-                'Dry',
-                'Ice',
+                'WET CHICKEN',
+                'SAYURAN',
+                'DRY',
+                'ICE',
               ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (v) {
                 setState(() {
@@ -973,7 +971,7 @@ class _Menu1PageState extends State<Menu1Page> {
     return Column(
       children: [
         ElevatedButton.icon(
-          onPressed: scanForDevices,
+          onPressed: bluetoothStatus == "Scanning..." ? null : scanForDevices,
           icon: Icon(Icons.bluetooth, color: Colors.grey),
           label: Text('Connect to Scale'),
           style: ElevatedButton.styleFrom(
@@ -1011,7 +1009,9 @@ class _Menu1PageState extends State<Menu1Page> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    bluetoothStatus,
+                    bluetoothStatus.isNotEmpty
+                        ? bluetoothStatus
+                        : "No devices found",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -1019,12 +1019,6 @@ class _Menu1PageState extends State<Menu1Page> {
                     ),
                   ),
                   SizedBox(height: 4),
-                  connectedDevice != null && esp32Weight != null
-                      ? Text(
-                          'Weight: $esp32Weight Kg',
-                          style: TextStyle(fontSize: 16),
-                        )
-                      : SizedBox.shrink(),
                   Text(
                     'Make sure your ESP32 scale is powered on and within range',
                     style: TextStyle(color: Colors.grey[600], fontSize: 14),

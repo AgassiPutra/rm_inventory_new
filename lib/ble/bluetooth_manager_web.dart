@@ -1,20 +1,25 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+
+import 'package:flutter_web_bluetooth/flutter_web_bluetooth.dart';
+
 import '../models/app_bluetooth_device.dart';
 import 'bluetooth_manager.dart';
 
 class BluetoothManagerWeb implements BluetoothManager {
-  final bluetooth = js_util.getProperty(html.window.navigator, 'bluetooth');
+  final FlutterWebBluetoothInterface _ble = FlutterWebBluetooth.instance;
+
   final List<AppBluetoothDevice> _foundDevices = [];
   final _weightController = StreamController<String>.broadcast();
-  String _status = 'Idle';
 
-  dynamic _device;
-  dynamic _server;
-  dynamic _characteristic;
-  html.EventListener? _notificationListener;
+  BluetoothDevice? _device;
+  BluetoothCharacteristic? _notifyChar;
+  StreamSubscription<ByteData>? _valueSub;
+
+  String _status = 'Idle';
+  static const String _serviceUuid = 'cd5cac32-0548-437b-b273-e0bf0d372110';
+  static const String _charUuid = 'bb0c63ff-6916-4c89-b62e-a2b090c78601';
 
   @override
   Stream<String> get weightStream => _weightController.stream;
@@ -27,197 +32,133 @@ class BluetoothManagerWeb implements BluetoothManager {
 
   @override
   Future<void> scanForDevices() async {
-    _status = 'Mencari perangkat...';
-    if (bluetooth == null) {
-      _status = 'Web Bluetooth tidak didukung di browser ini';
-      print('Error: Web Bluetooth tidak didukung');
+    _status = 'Meminta perangkat...';
+
+    if (!_ble.isBluetoothApiSupported) {
+      _status = 'Web Bluetooth tidak didukung pada browser ini';
       return;
     }
 
     try {
-      final device = await js_util.promiseToFuture(
-        js_util.callMethod(bluetooth, 'requestDevice', [
-          js_util.jsify({
-            'filters': [
-              {
-                'services': ['cd5cac32-0548-437b-b273-e0bf0d372110'],
-              },
-            ],
-            'optionalServices': ['cd5cac32-0548-437b-b273-e0bf0d372110'],
-          }),
-        ]),
+      final options = RequestOptionsBuilder(
+        [
+          RequestFilterBuilder(services: [_serviceUuid]),
+        ],
+        optionalServices: [_serviceUuid],
       );
 
-      if (device != null) {
-        _foundDevices.clear();
-        final deviceId = js_util.getProperty(device, 'id') as String;
-        final deviceName =
-            (js_util.getProperty(device, 'name') ?? 'Unnamed') as String;
-        _foundDevices.add(
-          AppBluetoothDevice(
-            id: deviceId,
-            name: deviceName,
-            nativeDevice: device,
-          ),
-        );
-        _status = 'Perangkat ditemukan: $deviceName';
-        _device = device;
+      final dev = await _ble.requestDevice(options);
+
+      if (dev != null) {
+        _foundDevices
+          ..clear()
+          ..add(
+            AppBluetoothDevice(
+              id: dev.id,
+              name: dev.name ?? 'Unnamed',
+              nativeDevice: dev,
+            ),
+          );
+        _device = dev;
+        _status = 'Perangkat ditemukan: ${dev.name ?? dev.id}';
       } else {
-        _status = 'Tidak ada perangkat dipilih atau izin ditolak';
+        _status = 'Tidak ada perangkat dipilih (dialog dibatalkan)';
       }
+    } on SecurityError catch (e) {
+      _status = 'Service/Characteristic diblokir browser: $e';
+    } on BluetoothAdapterNotAvailable {
+      _status = 'Adapter Bluetooth tidak tersedia/disabled';
     } catch (e) {
-      _status = 'Error saat mencari perangkat: $e';
-      print('Scan error: $e');
+      _status = 'Error saat memindai: $e';
     }
   }
 
   @override
   Future<void> connectToDevice(AppBluetoothDevice device) async {
-    if (device.nativeDevice == null) {
-      _status = "No device to connect";
+    final native = device.nativeDevice;
+    if (native is! BluetoothDevice) {
+      _status = 'Objek device tidak valid';
       return;
     }
 
-    _status = "Connecting to device...";
+    _status = 'Menghubungkan ke ${device.name}...';
 
     try {
-      _server = js_util.getProperty(device.nativeDevice, 'gatt');
-      await js_util.promiseToFuture(js_util.callMethod(_server, 'connect', []));
-      await exploreServices(device.nativeDevice);
+      await native.connect(timeout: const Duration(seconds: 5));
 
-      _status = "Connected to ${device.name}";
-    } catch (e) {
-      _status = "Connection failed: $e";
-      print('Connect error: $e');
-    }
-  }
-
-  Future<void> exploreServices(dynamic device) async {
-    try {
-      final gatt = js_util.getProperty(device, 'gatt');
-      final services = await js_util.promiseToFuture(
-        js_util.callMethod(gatt, 'getPrimaryServices', []),
+      final services = await native.discoverServices();
+      final service = services.firstWhere(
+        (s) => s.uuid.toLowerCase() == _serviceUuid,
+        orElse: () => throw Exception('Service $_serviceUuid tidak ditemukan'),
       );
 
-      for (var service in services) {
-        final serviceUuid = js_util.getProperty(service, 'uuid') as String;
-        print("🔹 Service: $serviceUuid");
+      final ch = await service.getCharacteristic(_charUuid);
+      _notifyChar = ch;
 
-        if (serviceUuid.toLowerCase() ==
-            'cd5cac32-0548-437b-b273-e0bf0d372110') {
-          final characteristics = await js_util.promiseToFuture(
-            js_util.callMethod(service, 'getCharacteristics', []),
-          );
+      await ch.startNotifications();
 
-          for (var char in characteristics) {
-            final charUuid = js_util.getProperty(char, 'uuid') as String;
-            final props = js_util.getProperty(char, 'properties');
-            final canNotify = js_util.getProperty(props, 'notify') as bool;
-            print("   ↳ Char: $charUuid | Notify: $canNotify");
-
-            if (charUuid.toLowerCase() ==
-                    'bb0c63ff-6916-4c89-b62e-a2b090c78601' &&
-                canNotify) {
-              _characteristic = char;
-              print("Mencoba mengaktifkan notifikasi untuk $charUuid");
-              await startNotifications(_characteristic);
-            }
+      await _valueSub?.cancel();
+      _valueSub = ch.value.listen(
+        (ByteData data) {
+          final text = _decodeText(data);
+          if (text.isNotEmpty) {
+            _weightController.add(text.trim());
           }
-        }
-      }
+        },
+        onError: (e) {
+          _status = 'Error notifikasi: $e';
+        },
+        cancelOnError: false,
+      );
+
+      _status = 'Terhubung ke ${device.name}';
+      _device = native;
+    } on SecurityError catch (e) {
+      _status = 'Hak akses ditolak: $e';
+    } on NetworkError catch (e) {
+      _status = 'Gagal komunikasi GATT: $e';
     } catch (e) {
-      print("⚠️ exploreServices error: $e");
+      _status = 'Gagal menghubungkan: $e';
     }
   }
 
-  Future<void> startNotifications(dynamic char) async {
+  String _decodeText(ByteData data) {
+    final bytes = data.buffer.asUint8List();
+    int last = bytes.length - 1;
+    while (last >= 0 && bytes[last] == 0) {
+      last--;
+    }
+    if (last < 0) return '';
+
+    final trimmed = Uint8List.sublistView(bytes, 0, last + 1);
+    return utf8.decode(trimmed, allowMalformed: true);
+  }
+
+  Future<void> _stopNotifications() async {
     try {
-      await js_util.promiseToFuture(
-        js_util.callMethod(char, 'startNotifications', []),
-      );
-      print(
-        "Notifikasi berhasil diaktifkan untuk ${js_util.getProperty(char, 'uuid')}",
-      );
-      _notificationListener = (html.Event event) {
-        final jsObject = js_util.getProperty(event, 'target');
-        final value = js_util.getProperty(jsObject, 'value');
-        final buffer = js_util.getProperty(value, 'buffer');
-        final bytes = Uint8List.view(buffer);
+      await _valueSub?.cancel();
+      _valueSub = null;
 
-        final weight = String.fromCharCodes(bytes).trim();
-        print("📩 Data diterima: $weight kg");
-        _weightController.add(weight);
-      };
-      js_util.callMethod(char, 'addEventListener', [
-        'characteristicvaluechanged',
-        _notificationListener,
-      ]);
-    } catch (e) {
-      print("⚠️ Error startNotifications: $e");
-      _status = "Notifikasi tidak didukung, mencoba baca manual...";
-      _startPolling(char);
-    }
-  }
+      final ch = _notifyChar;
+      _notifyChar = null;
 
-  void _startPolling(dynamic char) {
-    Timer.periodic(Duration(seconds: 2), (timer) async {
-      try {
-        final value = await js_util.promiseToFuture(
-          js_util.callMethod(char, 'readValue', []),
-        );
-        final buffer = js_util.getProperty(value, 'buffer');
-        final bytes = Uint8List.view(buffer);
-
-        final weight = String.fromCharCodes(bytes).trim();
-        print("📩 Data dari polling: $weight kg");
-        _weightController.add(weight);
-      } catch (e) {
-        print("⚠️ Polling error: $e");
+      if (ch != null) {
+        await ch.stopNotifications();
       }
-    });
-  }
-
-  Future<void> stopNotifications(dynamic char) async {
-    if (_notificationListener != null) {
-      js_util.callMethod(char, 'removeEventListener', [
-        'characteristicvaluechanged',
-        _notificationListener,
-      ]);
-      _notificationListener = null;
-    }
-
-    try {
-      await js_util.promiseToFuture(
-        js_util.callMethod(char, 'stopNotifications', []),
-      );
-    } catch (e) {
-      print("⚠️ stopNotifications error: $e");
-    }
+    } catch (_) {}
   }
 
   @override
   Future<void> disconnect() async {
-    if (_server != null) {
-      try {
-        if (_characteristic != null) {
-          await stopNotifications(_characteristic);
-        }
-        await js_util.promiseToFuture(
-          js_util.callMethod(_server, 'disconnect', []),
-        );
-        _status = "Disconnected from device";
-      } catch (e) {
-        _status = "Disconnection failed: $e";
-        print('Disconnect error: $e');
-      }
-    }
+    await _stopNotifications();
+    _device?.disconnect();
+    _device = null;
+    _status = 'Disconnected';
   }
 
   @override
   void dispose() {
-    if (_characteristic != null) {
-      stopNotifications(_characteristic);
-    }
+    _stopNotifications();
     _weightController.close();
   }
 }

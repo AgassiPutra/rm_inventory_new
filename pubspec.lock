@@ -733,6 +733,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  universal_ble:
+    dependency: "direct main"
+    description:
+      name: universal_ble
+      sha256: "4d8f48dd09dbaf9c5b079e77924df78cc7c276d634183919160314edc22d7c76"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.13.0"
   vector_math:
     dependency: transitive
     description:
