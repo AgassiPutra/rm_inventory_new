@@ -449,7 +449,7 @@ class _Menu1PageState extends State<Menu1Page> {
             ),
             SizedBox(height: 16),
             Card(
-              color: Colors.purple[50],
+              color: invoiceFile == null ? Colors.red[100] : Colors.green[100],
               margin: EdgeInsets.only(bottom: 16),
               child: Padding(
                 padding: EdgeInsets.all(16),
@@ -492,7 +492,9 @@ class _Menu1PageState extends State<Menu1Page> {
               ),
             ),
             Card(
-              color: Colors.purple[50],
+              color: suratJalanFile == null
+                  ? Colors.red[100]
+                  : Colors.green[100],
               margin: EdgeInsets.only(bottom: 16),
               child: Padding(
                 padding: EdgeInsets.all(16),
