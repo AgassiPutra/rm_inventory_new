@@ -681,8 +681,38 @@ class _Menu1PageState extends State<Menu1Page> {
                               style: TextStyle(color: Colors.grey),
                             ),
                           ),
+                          if (connectedDevice != null)
+                            TextButton.icon(
+                              onPressed: () async {
+                                await bluetoothManager.disconnect();
+                                await _notificationSubscription?.cancel();
+                                _notificationSubscription = null;
+
+                                if (mounted) {
+                                  setState(() {
+                                    connectedDevice = null;
+                                    esp32Weight = null;
+                                    bluetoothStatus = "Disconnected";
+                                  });
+                                }
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Koneksi diputus")),
+                                );
+                              },
+                              icon: Icon(
+                                Icons.bluetooth_disabled,
+                                size: 16,
+                                color: Colors.red,
+                              ),
+                              label: Text(
+                                'Disconnect',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
                         ],
                       ),
+
                       SizedBox(height: 24),
                       if (connectedDevice != null) ...[
                         Text('Status Penerimaan:'),
@@ -800,33 +830,6 @@ class _Menu1PageState extends State<Menu1Page> {
             ),
           ),
           SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () async {
-              await bluetoothManager.disconnect();
-              await _notificationSubscription?.cancel();
-              _notificationSubscription = null;
-
-              if (mounted) {
-                setState(() {
-                  connectedDevice = null;
-                  esp32Weight = null;
-                  bluetoothStatus = "Disconnected";
-                });
-              }
-
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text("Koneksi diputus")));
-            },
-            icon: Icon(Icons.bluetooth_disabled),
-            label: Text("Disconnect"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: StadiumBorder(),
-              minimumSize: Size(double.infinity, 48),
-            ),
-          ),
           Container(
             padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
