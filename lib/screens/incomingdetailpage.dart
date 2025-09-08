@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
 class IncomingDetailPage extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -47,10 +49,15 @@ class IncomingDetailPage extends StatelessWidget {
             _buildSection(
               title: 'Documents',
               children: [
-                _buildDocumentRow('Invoice Supplier', hasDocument: false),
                 _buildDocumentRow(
+                  context,
+                  'Invoice Supplier',
+                  imagePath: data['invoice_supplier'],
+                ),
+                _buildDocumentRow(
+                  context,
                   'Delivery Note (Surat Jalan)',
-                  hasDocument: false,
+                  imagePath: data['surat_jalan'],
                 ),
               ],
             ),
@@ -168,12 +175,38 @@ class IncomingDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDocumentRow(String label, {bool hasDocument = false}) {
+  Widget _buildDocumentRow(
+    BuildContext context,
+    String title, {
+    required String? imagePath,
+  }) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: Text(
-        hasDocument ? 'Document available' : 'No document available',
+      title: Text(title),
+      trailing: IconButton(
+        icon: const Icon(Icons.remove_red_eye),
+        onPressed: () {
+          if (imagePath != null && imagePath.isNotEmpty) {
+            final fullUrl = "https://gtsrm.scm-ppa.com/$imagePath";
+
+            showDialog(
+              context: context,
+              builder: (context) => Dialog(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    fullUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Text("Gagal memuat gambar"),
+                  ),
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Tidak ada gambar untuk $title')),
+            );
+          }
+        },
       ),
     );
   }
