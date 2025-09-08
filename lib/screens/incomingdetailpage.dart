@@ -186,8 +186,8 @@ class IncomingDetailPage extends StatelessWidget {
         icon: const Icon(Icons.remove_red_eye),
         onPressed: () {
           if (imagePath != null && imagePath.isNotEmpty) {
-            final fullUrl = "https://gtsrm.scm-ppa.com/$imagePath";
-
+            final fullUrl = "https://trial-api-gts-rm.scm-ppa.com/$imagePath";
+            print("Image URL: $fullUrl");
             showDialog(
               context: context,
               builder: (context) => Dialog(
