@@ -273,24 +273,32 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Faktur: ${widget.data['faktur']}',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        SizedBox(height: 4),
-        Row(
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.calendar_today_outlined, size: 16),
-            SizedBox(width: 4),
-            Text(widget.data['tanggal_incoming'] ?? ''),
+            Text(
+              'Faktur: ${widget.data['faktur']}',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.calendar_today_outlined, size: 16),
+                SizedBox(width: 4),
+                Text(widget.data['tanggal_incoming'] ?? ''),
+              ],
+            ),
+            SizedBox(height: 4),
+            Text('Created by: Admin CK2', style: TextStyle(color: Colors.grey)),
           ],
         ),
-        SizedBox(height: 4),
-        Text('Created by: Admin CK2', style: TextStyle(color: Colors.grey)),
-      ],
+      ),
     );
   }
 
