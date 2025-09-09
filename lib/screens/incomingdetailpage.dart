@@ -18,12 +18,72 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   final TextEditingController quantityLossController = TextEditingController();
   List<Map<String, dynamic>> scaleData = [];
   bool isLoading = true;
+  XFile? _invoiceRevision;
+  XFile? _suratJalanRevision;
 
   @override
   void initState() {
     super.initState();
     quantityLossController.text = widget.data['loss']?.toString() ?? '0';
     fetchTimbangan(widget.data['faktur']);
+  }
+
+  Future<void> uploadRevisionFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    final faktur = widget.data['faktur'] ?? '';
+
+    try {
+      final uri = Uri.parse(
+        "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?Faktur=$faktur",
+      );
+      final request = http.MultipartRequest('PUT', uri);
+
+      if (_invoiceRevision != null) {
+        final bytes = await _invoiceRevision!.readAsBytes();
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'invoice_supplier_revisi',
+            bytes,
+            filename: _invoiceRevision!.name,
+          ),
+        );
+      }
+
+      if (_suratJalanRevision != null) {
+        final bytes = await _suratJalanRevision!.readAsBytes();
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'surat_jalan_revisi',
+            bytes,
+            filename: _suratJalanRevision!.name,
+          ),
+        );
+      }
+
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept'] = 'application/json';
+
+      final response = await request.send();
+      final respStr = await response.stream.bytesToString();
+      print("Response status: ${response.statusCode}");
+      print("Response body: $respStr");
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("✅ Upload revisi berhasil!")));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Upload gagal (${response.statusCode})")),
+        );
+      }
+    } catch (e) {
+      print("🔥 Error upload: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
+    }
   }
 
   Future<void> fetchTimbangan(String faktur) async {
@@ -47,7 +107,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        print("FULL DECODED: $decoded");
+        // print("FULL DECODED: $decoded");
 
         if (decoded is Map && decoded.containsKey('data')) {
           final data = decoded['data'];
@@ -132,21 +192,62 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   'Invoice Supplier',
                   imagePath: widget.data['invoce_supplier'],
                 ),
+                if (widget.data['invoce_supplier_revisi'] != null &&
+                    widget.data['invoce_supplier_revisi'].isNotEmpty)
+                  _buildDocumentRow(
+                    context,
+                    'Invoice Supplier Revision',
+                    imagePath: widget.data['invoce_supplier_revisi'],
+                  ),
                 _buildDocumentRow(
                   context,
                   'Delivery Note (Surat Jalan)',
                   imagePath: widget.data['surat_jalan'],
                 ),
+                if (widget.data['surat_jalan_revisi'] != null &&
+                    widget.data['surat_jalan_revisi'].isNotEmpty)
+                  _buildDocumentRow(
+                    context,
+                    'Delivery Note Revision',
+                    imagePath: widget.data['surat_jalan_revisi'],
+                  ),
               ],
             ),
 
             SizedBox(height: 12),
             _buildSection(
               title: 'Update Documents',
-              subtitle: 'Use this form to upload revised versions.',
+              subtitle:
+                  'Use this form to upload revised versions of the invoice or delivery note.',
               children: [
-                UploadRow(label: 'Invoice Supplier Revision'),
-                UploadRow(label: 'Delivery Note (Surat Jalan) Revision'),
+                UploadRow(
+                  label: 'Invoice Supplier Revision',
+                  onFilePicked: (file) => _invoiceRevision = file,
+                ),
+                UploadRow(
+                  label: 'Delivery Note (Surat Jalan) Revision',
+                  onFilePicked: (file) => _suratJalanRevision = file,
+                ),
+
+                SizedBox(height: 12),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: uploadRevisionFiles,
+                    icon: Icon(Icons.cloud_upload),
+                    label: Text("Upload Revision Files"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
 
@@ -446,8 +547,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
 class UploadRow extends StatefulWidget {
   final String label;
+  final Function(XFile?) onFilePicked;
 
-  const UploadRow({required this.label});
+  const UploadRow({required this.label, required this.onFilePicked, Key? key})
+    : super(key: key);
 
   @override
   _UploadRowState createState() => _UploadRowState();
@@ -458,12 +561,10 @@ class _UploadRowState extends State<UploadRow> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickFile() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      setState(() {
-        _pickedFile = image;
-      });
+      setState(() => _pickedFile = image);
+      widget.onFilePicked(image);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Selected file: ${image.name}')));
@@ -472,17 +573,47 @@ class _UploadRowState extends State<UploadRow> {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(widget.label),
-      subtitle: _pickedFile != null
-          ? Text('Selected: ${_pickedFile!.name}')
-          : Text('No file selected'),
-      trailing: ElevatedButton.icon(
-        onPressed: _pickFile,
-        icon: Icon(Icons.upload_file),
-        label: Text('Choose File'),
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.label,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  _pickedFile?.name ?? 'No file selected',
+                  style: TextStyle(color: Colors.grey[600]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: _pickFile,
+            icon: Icon(Icons.cloud_upload_outlined),
+            label: Text('Choose File'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
