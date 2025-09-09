@@ -72,17 +72,17 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("✅ Upload revisi berhasil!")));
+        ).showSnackBar(SnackBar(content: Text("Upload revisi berhasil!")));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Upload gagal (${response.statusCode})")),
+          SnackBar(content: Text("Upload gagal (${response.statusCode})")),
         );
       }
     } catch (e) {
-      print("🔥 Error upload: $e");
+      print("Error upload: $e");
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
