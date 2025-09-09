@@ -108,7 +108,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Text(
-              'Versi 0.2.0',
+              'Versi 0.2.1',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),
