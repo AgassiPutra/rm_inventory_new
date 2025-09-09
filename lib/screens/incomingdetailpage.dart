@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:typed_data';
 
 class IncomingDetailPage extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -129,7 +130,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 _buildDocumentRow(
                   context,
                   'Invoice Supplier',
-                  imagePath: widget.data['invoice_supplier'],
+                  imagePath: widget.data['invoce_supplier'],
                 ),
                 _buildDocumentRow(
                   context,
@@ -321,21 +322,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         icon: const Icon(Icons.remove_red_eye),
         onPressed: () {
           if (imagePath != null && imagePath.isNotEmpty) {
-            final fullUrl = "https://trial-api-gts-rm.scm-ppa.com/$imagePath";
-            print("Image URL: $fullUrl");
-            showDialog(
-              context: context,
-              builder: (context) => Dialog(
-                child: InteractiveViewer(
-                  child: Image.network(
-                    fullUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Text("Gagal memuat gambar"),
-                  ),
-                ),
-              ),
-            );
+            showImageDialog(context, imagePath, title);
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Tidak ada gambar untuk $title')),
@@ -344,6 +331,88 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         },
       ),
     );
+  }
+
+  void showImageDialog(BuildContext context, String imagePath, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.all(10),
+        child: FutureBuilder<Uint8List?>(
+          future: _fetchImageBytes(imagePath),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppBar(
+                    title: Text(title),
+                    automaticallyImplyLeading: false,
+                    actions: [
+                      IconButton(
+                        icon: Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text("Gagal memuat gambar"),
+                  ),
+                ],
+              );
+            }
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppBar(
+                  title: Text(title),
+                  automaticallyImplyLeading: false,
+                  actions: [
+                    IconButton(
+                      icon: Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: InteractiveViewer(child: Image.memory(snapshot.data!)),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _fetchImageBytes(String imagePath) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+      final url = Uri.parse("https://trial-api-gts-rm.scm-ppa.com/$imagePath");
+
+      print("Fetching image: $url");
+
+      final response = await http.get(
+        url,
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        print("Gagal load gambar: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      print("Error load gambar: $e");
+      return null;
+    }
   }
 
   Widget _buildSection({
