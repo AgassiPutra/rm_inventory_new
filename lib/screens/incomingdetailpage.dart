@@ -1,18 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-class IncomingDetailPage extends StatelessWidget {
+class IncomingDetailPage extends StatefulWidget {
   final Map<String, dynamic> data;
 
-  IncomingDetailPage({required this.data});
+  const IncomingDetailPage({required this.data, Key? key}) : super(key: key);
 
+  @override
+  _IncomingDetailPageState createState() => _IncomingDetailPageState();
+}
+
+class _IncomingDetailPageState extends State<IncomingDetailPage> {
   final TextEditingController quantityLossController = TextEditingController();
+  List<Map<String, dynamic>> scaleData = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    quantityLossController.text = widget.data['loss']?.toString() ?? '0';
+    fetchTimbangan(widget.data['faktur']);
+  }
+
+  Future<void> fetchTimbangan(String faktur) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+
+    final url = Uri.parse(
+      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$faktur",
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      print("Status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        print("FULL DECODED: $decoded");
+
+        if (decoded is Map && decoded.containsKey('data')) {
+          final data = decoded['data'];
+
+          if (data is List && data.isNotEmpty) {
+            final firstItem = data[0];
+            if (firstItem is Map && firstItem.isNotEmpty) {
+              final firstKey = firstItem.keys.first;
+              print("First Key: $firstKey");
+
+              final listData = firstItem[firstKey];
+              print("List Data: $listData");
+
+              setState(() {
+                scaleData = List<Map<String, dynamic>>.from(listData);
+                isLoading = false;
+              });
+              return;
+            }
+          }
+        }
+
+        setState(() {
+          scaleData = [];
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      print("Error fetch timbangan: $e");
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    quantityLossController.text = data['loss']?.toString() ?? '0';
+    final totalWeight = scaleData.fold<double>(
+      0,
+      (sum, item) => sum + (item['weight'] is num ? item['weight'] : 0),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -35,12 +110,14 @@ class IncomingDetailPage extends StatelessWidget {
             _buildSection(
               title: 'Raw Material Information',
               children: [
-                _buildInfoRow('Type', data['jenis_rm']),
-                _buildInfoRow('Supplier', data['supplier']),
-                _buildInfoRow('Unit', data['unit']),
+                _buildInfoRow('Type', widget.data['jenis_rm']),
+                _buildInfoRow('Supplier', widget.data['supplier']),
+                _buildInfoRow('Unit', widget.data['unit']),
                 _buildInfoRow(
                   'Quantity PO',
-                  (data['qty_po'] != null) ? '${data['qty_po']} KG' : '0 KG',
+                  (widget.data['qty_po'] != null)
+                      ? '${widget.data['qty_po']} KG'
+                      : '0 KG',
                 ),
               ],
             ),
@@ -52,12 +129,12 @@ class IncomingDetailPage extends StatelessWidget {
                 _buildDocumentRow(
                   context,
                   'Invoice Supplier',
-                  imagePath: data['invoice_supplier'],
+                  imagePath: widget.data['invoice_supplier'],
                 ),
                 _buildDocumentRow(
                   context,
                   'Delivery Note (Surat Jalan)',
-                  imagePath: data['surat_jalan'],
+                  imagePath: widget.data['surat_jalan'],
                 ),
               ],
             ),
@@ -91,7 +168,7 @@ class IncomingDetailPage extends StatelessWidget {
                         style: TextStyle(color: Colors.red),
                       ),
                       Text(
-                        '0 KG',
+                        '${widget.data['loss'] ?? '0'} KG',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade800,
@@ -129,14 +206,64 @@ class IncomingDetailPage extends StatelessWidget {
             _buildSection(
               title: 'Scale Data',
               children: [
-                Center(
-                  child: Column(
+                if (isLoading)
+                  Center(child: CircularProgressIndicator())
+                else if (scaleData.isEmpty)
+                  Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.hourglass_empty,
+                          size: 36,
+                          color: Colors.grey,
+                        ),
+                        Text('No scale data available'),
+                      ],
+                    ),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.hourglass_empty, size: 36, color: Colors.grey),
-                      Text('No scale data available'),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(12),
+                        margin: EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "Total Berat: ${totalWeight.toStringAsFixed(2)} Kg",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                      const Divider(),
+                      ...scaleData.map<Widget>((item) {
+                        final typeRm = item['type_rm'] ?? 'Unknown RM';
+                        final weight = item['weight'] ?? 0;
+                        final status = item['status'] ?? 'Unknown';
+                        final dateTime = item['date_time'] ?? '';
+
+                        return ListTile(
+                          leading: Icon(
+                            status.toString().toLowerCase() == 'retur'
+                                ? Icons.close
+                                : Icons.check_circle,
+                            color: status.toString().toLowerCase() == 'retur'
+                                ? Colors.red
+                                : Colors.green,
+                          ),
+                          title: Text("$typeRm - ${weight.toString()} Kg"),
+                          subtitle: Text("Status: $status\n$dateTime"),
+                        );
+                      }).toList(),
                     ],
                   ),
-                ),
               ],
             ),
           ],
@@ -150,7 +277,7 @@ class IncomingDetailPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Faktur: ${data['faktur']}',
+          'Faktur: ${widget.data['faktur']}',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         SizedBox(height: 4),
@@ -158,7 +285,7 @@ class IncomingDetailPage extends StatelessWidget {
           children: [
             Icon(Icons.calendar_today_outlined, size: 16),
             SizedBox(width: 4),
-            Text(data['tanggal_incoming'] ?? ''),
+            Text(widget.data['tanggal_incoming'] ?? ''),
           ],
         ),
         SizedBox(height: 4),
