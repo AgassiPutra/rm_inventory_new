@@ -37,7 +37,6 @@ class _Menu1PageState extends State<Menu1Page> {
   String qtyPo = '';
   String produsen = '';
   String? esp32Weight;
-  bool _showScaleConnection = false;
   String? selectedStatusPenerimaan;
   String? selectedTipeRM;
   String? lastSubmittedFaktur;
@@ -633,9 +632,6 @@ class _Menu1PageState extends State<Menu1Page> {
             Center(
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    _showScaleConnection = true;
-                  });
                   submitData();
                 },
                 child: Text('Submit'),
@@ -646,139 +642,138 @@ class _Menu1PageState extends State<Menu1Page> {
               ),
             ),
             SizedBox(height: 32),
-            if (_showScaleConnection)
-              Card(
-                color: Colors.grey[20],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Scale Connection',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
+            Card(
+              color: Colors.grey[20],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Scale Connection',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
                             ),
                           ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {},
+                          icon: Icon(
+                            Icons.settings,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          label: Text(
+                            'Debug',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                        if (connectedDevice != null)
                           TextButton.icon(
-                            onPressed: () {},
+                            onPressed: () async {
+                              await bluetoothManager.disconnect();
+                              await _notificationSubscription?.cancel();
+                              _notificationSubscription = null;
+
+                              if (mounted) {
+                                setState(() {
+                                  connectedDevice = null;
+                                  esp32Weight = null;
+                                  bluetoothStatus = "Disconnected";
+                                });
+                              }
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Koneksi diputus")),
+                              );
+                            },
                             icon: Icon(
-                              Icons.settings,
+                              Icons.bluetooth_disabled,
                               size: 16,
-                              color: Colors.grey,
+                              color: Colors.red,
                             ),
                             label: Text(
-                              'Debug',
-                              style: TextStyle(color: Colors.grey),
+                              'Disconnect',
+                              style: TextStyle(color: Colors.red),
                             ),
                           ),
-                          if (connectedDevice != null)
-                            TextButton.icon(
-                              onPressed: () async {
-                                await bluetoothManager.disconnect();
-                                await _notificationSubscription?.cancel();
-                                _notificationSubscription = null;
-
-                                if (mounted) {
-                                  setState(() {
-                                    connectedDevice = null;
-                                    esp32Weight = null;
-                                    bluetoothStatus = "Disconnected";
-                                  });
-                                }
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Koneksi diputus")),
-                                );
-                              },
-                              icon: Icon(
-                                Icons.bluetooth_disabled,
-                                size: 16,
-                                color: Colors.red,
-                              ),
-                              label: Text(
-                                'Disconnect',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ),
-                        ],
-                      ),
-
-                      SizedBox(height: 24),
-                      if (connectedDevice != null) ...[
-                        Text('Status Penerimaan:'),
-                        SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: selectedStatusPenerimaan,
-                          items: ['Normal', 'Reject', 'Retur']
-                              .map(
-                                (status) => DropdownMenuItem(
-                                  value: status,
-                                  child: Text(status),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedStatusPenerimaan = value;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        Text('Tipe RM:'),
-                        SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: selectedTipeRM,
-                          items: (tipeRMOptions[selectedJenisRm] ?? [])
-                              .map(
-                                (tipe) => DropdownMenuItem(
-                                  value: tipe,
-                                  child: Text(tipe),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedTipeRM = value;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 24),
                       ],
-                      Center(
-                        child: connectedDevice != null && esp32Weight != null
-                            ? _buildConnectedScaleUI()
-                            : _buildConnectionUI(),
+                    ),
+
+                    SizedBox(height: 24),
+                    if (connectedDevice != null) ...[
+                      Text('Status Penerimaan:'),
+                      SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: selectedStatusPenerimaan,
+                        items: ['Normal', 'Reject', 'Retur']
+                            .map(
+                              (status) => DropdownMenuItem(
+                                value: status,
+                                child: Text(status),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedStatusPenerimaan = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
                       ),
+                      SizedBox(height: 16),
+                      Text('Tipe RM:'),
+                      SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: selectedTipeRM,
+                        items: (tipeRMOptions[selectedJenisRm] ?? [])
+                            .map(
+                              (tipe) => DropdownMenuItem(
+                                value: tipe,
+                                child: Text(tipe),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedTipeRM = value;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 24),
                     ],
-                  ),
+                    Center(
+                      child: connectedDevice != null && esp32Weight != null
+                          ? _buildConnectedScaleUI()
+                          : _buildConnectionUI(),
+                    ),
+                  ],
                 ),
               ),
+            ),
           ],
         ),
       ),
