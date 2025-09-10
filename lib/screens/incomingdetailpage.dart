@@ -143,6 +143,55 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
   }
 
+  Future<void> updateQuantityLoss() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    final faktur = widget.data['faktur'];
+    final qtyLoss = quantityLossController.text.trim();
+
+    if (qtyLoss.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Masukkan nilai Quantity Loss terlebih dahulu')),
+      );
+      return;
+    }
+
+    final url = Uri.parse(
+      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?Faktur=$faktur",
+    );
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"qty_losses": qtyLoss}),
+      );
+
+      print("Response status: ${response.statusCode}");
+      print("Response body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Quantity loss updated successfully!')),
+        );
+        setState(() {
+          widget.data['loss'] = qtyLoss;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal update: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalWeight = scaleData.fold<double>(
@@ -292,13 +341,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 ElevatedButton.icon(
                   icon: Icon(Icons.save),
                   label: Text('Save Quantity Loss'),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Quantity loss updated successfully'),
-                      ),
-                    );
-                  },
+                  onPressed: updateQuantityLoss,
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 ),
               ],
