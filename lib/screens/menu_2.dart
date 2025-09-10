@@ -87,7 +87,7 @@ class _Menu2PageState extends State<Menu2Page> {
     try {
       final token = await getToken();
       final response = await http.get(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm'),
+        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm'),
         headers: {'Authorization': 'Bearer $token'},
       );
 

@@ -202,7 +202,7 @@ class _Menu1PageState extends State<Menu1Page> {
     }
 
     final response = await http.get(
-      Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
+      Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -251,7 +251,7 @@ class _Menu1PageState extends State<Menu1Page> {
     }
 
     final uri = Uri.parse(
-      'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm',
+      'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm',
     );
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token'
@@ -292,7 +292,7 @@ class _Menu1PageState extends State<Menu1Page> {
       lastSubmittedFaktur = fakturBaru;
       debugPrint("Faktur baru: $fakturBaru");
       final timbangUri = Uri.parse(
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+        'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$fakturBaru',
       );
 
       final timbangResponse = await http.post(
@@ -320,7 +320,7 @@ class _Menu1PageState extends State<Menu1Page> {
         return;
       }
       final getUri = Uri.parse(
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+        'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$fakturBaru',
       );
 
       final getResponse = await http.get(
@@ -375,7 +375,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
   Future<void> submitTimbangan(String faktur, String token) async {
     final uri = Uri.parse(
-      'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$faktur',
+      'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$faktur',
     );
 
     final body = {
@@ -899,7 +899,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
               final response = await http.post(
                 Uri.parse(
-                  'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+                  'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$fakturBaru',
                 ),
                 headers: {
                   'Authorization': 'Bearer $token',

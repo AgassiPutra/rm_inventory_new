@@ -57,7 +57,7 @@ class _DashboardPageState extends State<DashboardPage> {
       return;
     }
 
-    const url = 'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+    const url = 'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm';
 
     try {
       final response = await http.get(
