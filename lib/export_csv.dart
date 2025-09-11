@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:html' as html show AnchorElement, Blob, Url; // khusus web
-import 'dart:io' as io show File; // khusus mobile
+import 'dart:html' as html show AnchorElement, Blob, Url;
+import 'dart:io' as io show File;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +9,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:csv/csv.dart';
 
 Future<void> exportCsv(BuildContext context) async {
-  // Contoh data dummy, nanti ganti dengan data asli dashboard
   final List<List<dynamic>> rows = [
     ['Tanggal', 'Kategori', 'Jumlah'],
     ['2025-08-12', 'Wet Chicken Dada', 10],
@@ -25,7 +24,6 @@ Future<void> exportCsv(BuildContext context) async {
       "incoming_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv";
 
   if (kIsWeb) {
-    // Export untuk Web
     final bytes = utf8.encode(csvData);
     final blob = html.Blob([bytes]);
     final url = html.Url.createObjectUrlFromBlob(blob);
@@ -37,7 +35,6 @@ Future<void> exportCsv(BuildContext context) async {
       context,
     ).showSnackBar(const SnackBar(content: Text("CSV berhasil diunduh (Web)")));
   } else {
-    // Export untuk Mobile (Android/iOS)
     try {
       final directory = await getExternalStorageDirectory();
       final path = "${directory!.path}/$fileName";
