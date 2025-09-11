@@ -20,12 +20,65 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   bool isLoading = true;
   XFile? _invoiceRevision;
   XFile? _suratJalanRevision;
+  String _qtyLoss = '0';
 
   @override
   void initState() {
     super.initState();
-    quantityLossController.text = widget.data['loss']?.toString() ?? '0';
+    _qtyLoss = '0';
+    fetchIncomingDetail(widget.data['faktur']);
     fetchTimbangan(widget.data['faktur']);
+  }
+
+  Future<void> fetchIncomingDetail(String faktur) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+
+    final url = Uri.parse(
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?Faktur=$faktur",
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+
+        // print("DEBUG incoming-rm response: $decoded");
+
+        if (decoded is Map && decoded.containsKey('data')) {
+          final dataList = decoded['data'];
+          if (dataList is List) {
+            final match = dataList.firstWhere(
+              (item) => item['faktur'] == faktur,
+              orElse: () => null,
+            );
+
+            setState(() {
+              _qtyLoss = match?['qty_losses']?.toString() ?? '0';
+              quantityLossController.text = _qtyLoss;
+              isLoading = false;
+            });
+          }
+        } else {
+          setState(() {
+            _qtyLoss = '0';
+            isLoading = false;
+          });
+        }
+      } else {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      print("Error fetch incoming detail: $e");
+      setState(() => isLoading = false);
+    }
   }
 
   Future<void> uploadRevisionFiles() async {
@@ -103,12 +156,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         },
       );
 
-      print("Status: ${response.statusCode}");
+      print("Status Timbangan: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        // print("FULL DECODED: $decoded");
-
         if (decoded is Map && decoded.containsKey('data')) {
           final data = decoded['data'];
 
@@ -116,10 +167,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
             final firstItem = data[0];
             if (firstItem is Map && firstItem.isNotEmpty) {
               final firstKey = firstItem.keys.first;
-              print("First Key: $firstKey");
-
               final listData = firstItem[firstKey];
-              print("List Data: $listData");
 
               setState(() {
                 scaleData = List<Map<String, dynamic>>.from(listData);
@@ -178,7 +226,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           SnackBar(content: Text('Quantity loss updated successfully!')),
         );
         setState(() {
-          widget.data['loss'] = qtyLoss;
+          _qtyLoss = qtyLoss;
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -319,7 +367,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                         style: TextStyle(color: Colors.red),
                       ),
                       Text(
-                        '${widget.data['loss'] ?? '0'} KG',
+                        '$_qtyLoss KG',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade800,
@@ -352,66 +400,86 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               title: 'Scale Data',
               children: [
                 if (isLoading)
-                  Center(child: CircularProgressIndicator())
-                else if (scaleData.isEmpty)
-                  Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.hourglass_empty,
-                          size: 36,
-                          color: Colors.grey,
-                        ),
-                        Text('No scale data available'),
-                      ],
-                    ),
-                  )
+                  const Center(child: CircularProgressIndicator())
                 else
                   Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(12),
-                        margin: EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          "Total Berat: ${totalWeight.toStringAsFixed(2)} Kg",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildInfoBadge(
+                            "Total: ${totalWeight.toStringAsFixed(2)} kg",
+                            Colors.green.shade100,
                           ),
-                        ),
+                          _buildInfoBadge(
+                            "Penimbangan: ${scaleData.length} kali",
+                            Colors.green.shade100,
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 12),
                       const Divider(),
-                      ...scaleData.map<Widget>((item) {
-                        final typeRm = item['type_rm'] ?? 'Unknown RM';
-                        final weight = item['weight'] ?? 0;
-                        final status = item['status'] ?? 'Unknown';
-                        final dateTime = item['date_time'] ?? '';
-
-                        return ListTile(
-                          leading: Icon(
-                            status.toString().toLowerCase() == 'retur'
-                                ? Icons.close
-                                : Icons.check_circle,
-                            color: status.toString().toLowerCase() == 'retur'
-                                ? Colors.red
-                                : Colors.green,
+                      if (scaleData.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          alignment: Alignment.center,
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(height: 8),
+                              Icon(Icons.scale, size: 50, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text(
+                                'No scale data available',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
                           ),
-                          title: Text("$typeRm - ${weight.toString()} Kg"),
-                          subtitle: Text("Status: $status\n$dateTime"),
-                        );
-                      }).toList(),
+                        )
+                      else
+                        ...scaleData.map((item) {
+                          final typeRm = item['type_rm'] ?? 'Unknown RM';
+                          final weight = item['weight'] ?? 0;
+                          final status = item['status'] ?? 'Unknown';
+                          final dateTime = item['date_time'] ?? '';
+
+                          return ListTile(
+                            leading: Icon(
+                              status.toString().toLowerCase() == 'retur'
+                                  ? Icons.close
+                                  : Icons.check_circle,
+                              color: status.toString().toLowerCase() == 'retur'
+                                  ? Colors.red
+                                  : Colors.green,
+                            ),
+                            title: Text("$typeRm - ${weight.toString()} Kg"),
+                            subtitle: Text("Status: $status\n$dateTime"),
+                          );
+                        }).toList(),
                     ],
                   ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoBadge(String text, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.green,
         ),
       ),
     );
