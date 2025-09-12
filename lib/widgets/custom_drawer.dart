@@ -21,6 +21,7 @@ class CustomDrawer extends StatefulWidget {
 class _CustomDrawerState extends State<CustomDrawer> {
   String nama = '';
   String posisi = '';
+  String unit = '';
 
   @override
   void initState() {
@@ -33,6 +34,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     setState(() {
       nama = prefs.getString('nama') ?? '';
       posisi = prefs.getString('posisi') ?? '';
+      unit = prefs.getString('unit') ?? '';
     });
   }
 
@@ -45,55 +47,42 @@ class _CustomDrawerState extends State<CustomDrawer> {
           bottomRight: Radius.circular(18),
         ),
       ),
-      child: Column(
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          DrawerHeader(
+          UserAccountsDrawerHeader(
             decoration: const BoxDecoration(
               color: Color.fromARGB(255, 140, 5, 161),
             ),
-            padding: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        nama.isNotEmpty ? nama[0] : 'A',
-                        style: const TextStyle(
-                          color: Colors.purple,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    nama.isNotEmpty ? nama : 'AdminCK2',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    posisi.isNotEmpty ? posisi : 'Posisi',
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            currentAccountPicture: CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.white,
+              child: Text(
+                nama.isNotEmpty ? nama[0] : 'A',
+                style: const TextStyle(
+                  color: Colors.purple,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+            ),
+            accountName: Text(
+              nama.isNotEmpty ? nama : 'AdminCK2',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            accountEmail: Text(
+              ((posisi.isNotEmpty ? posisi : 'Posisi') +
+                  '\n' +
+                  (unit.isNotEmpty ? unit : 'Unit')),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           drawerItem(context, 'Dashboard', '/dashboard'),
@@ -103,11 +92,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
           drawerItem(context, 'QC Inspection', '/menu4'),
           drawerItem(context, 'Batching', '/menu5'),
           drawerItem(context, 'Master', '/menu6'),
-          const Spacer(),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(
+          ListTile(
+            title: const Text(
               'Versi 0.2.2',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),

@@ -482,6 +482,7 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
     'DRY',
     'SAYURAN',
     'ICE',
+    'UDANG',
   ];
 
   final List<String> satuanOptions = const [

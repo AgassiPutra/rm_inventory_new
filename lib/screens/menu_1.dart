@@ -27,11 +27,41 @@ class _Menu1PageState extends State<Menu1Page> {
   late TextEditingController produsenController;
   TextEditingController qtyPoController = TextEditingController();
   List<Map<String, dynamic>> suppliers = [];
+  List<Map<String, dynamic>> allSuppliers = [];
   StreamSubscription<String>? _notificationSubscription;
   late web.BluetoothManagerWeb bluetoothManager;
   List<Map<String, dynamic>> receivedList = [];
+  List<String> get jenisList {
+    final jenisSet = suppliers.map((s) => s['jenis_rm'] as String).toSet();
+    return jenisSet.toList();
+  }
 
-  String? selectedUnit;
+  List<String> get filteredSuppliers {
+    if (selectedJenisRm == null) return [];
+    return suppliers
+        .where((s) => s['jenis_rm'] == selectedJenisRm)
+        .map((s) => s['supplier'] as String)
+        .toList();
+  }
+
+  List<String> jenisRmList = [];
+
+  void updateJenisRmList() {
+    final distinctJenis = suppliers.map((e) => e['jenis_rm'] as String).toSet();
+    setState(() {
+      jenisRmList = distinctJenis.toList();
+    });
+  }
+
+  bool isSaving = false;
+  bool get isFormComplete {
+    return invoiceFile != null &&
+        suratJalanFile != null &&
+        selectedJenisRm != null &&
+        selectedSupplier != null &&
+        qtyPoController.text.isNotEmpty;
+  }
+
   String? selectedJenisRm;
   String? selectedSupplier;
   String qtyPo = '';
@@ -151,7 +181,7 @@ class _Menu1PageState extends State<Menu1Page> {
               });
             }
           } catch (e) {
-            debugPrint("❌ Gagal parsing data: '$weightData', error: $e");
+            debugPrint("Gagal parsing data: '$weightData', error: $e");
             if (mounted) {
               setState(() {
                 esp32Weight = null;
@@ -161,7 +191,7 @@ class _Menu1PageState extends State<Menu1Page> {
           }
         },
         onError: (error) {
-          debugPrint("❌ Error di weightStream: $error");
+          debugPrint("Error di weightStream: $error");
           if (mounted) {
             setState(() {
               bluetoothStatus = "Error menerima data: $error";
@@ -169,7 +199,7 @@ class _Menu1PageState extends State<Menu1Page> {
           }
         },
         onDone: () {
-          debugPrint("📴 Stream berat ditutup, kemungkinan perangkat terputus");
+          debugPrint("Stream berat ditutup, kemungkinan perangkat terputus");
           if (mounted) {
             setState(() {
               connectedDevice = null;
@@ -193,7 +223,7 @@ class _Menu1PageState extends State<Menu1Page> {
         });
       }
     } catch (e) {
-      debugPrint("❌ Error menghubungkan ke perangkat: $e");
+      debugPrint("Error menghubungkan ke perangkat: $e");
       if (mounted) {
         setState(() {
           connectedDevice = null;
@@ -233,26 +263,44 @@ class _Menu1PageState extends State<Menu1Page> {
       return;
     }
 
-    final response = await http.get(
-      Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    try {
+      final response = await http.get(
+        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-      final List<dynamic> data = body['data'];
+      print("Status code: ${response.statusCode}");
+      print("Response body: ${response.body}");
 
-      setState(() {
-        suppliers = data.map<Map<String, dynamic>>((item) {
-          return {
-            'supplier': item['supplier'],
-            'produsen': item['nama_pabrik'],
-          };
-        }).toList();
-      });
-    } else {
-      print('Failed to load suppliers: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final List<dynamic> data = body['data'];
+
+        setState(() {
+          suppliers = data.map<Map<String, dynamic>>((item) {
+            return {
+              'kode_supplier': item['kode_supplier'],
+              'supplier': item['supplier'],
+              'produsen': item['nama_pabrik'],
+              'satuan': item['satuan'],
+              'jenis_rm': item['jenis_rm'],
+              'jenis_ayam': item['jenis_ayam'],
+            };
+          }).toList();
+          final distinctJenis = suppliers
+              .map((e) => e['jenis_rm'] as String)
+              .toSet();
+          jenisRmList = distinctJenis.toList();
+        });
+
+        print("Suppliers berhasil dimuat: ${suppliers.length} item");
+        print("Jenis RM unik: $jenisRmList");
+      } else {
+        print('Failed to load suppliers: ${response.statusCode}');
+        print('Response body: ${response.body}');
+      }
+    } catch (e) {
+      print("Error fetchSuppliers: $e");
     }
   }
 
@@ -272,10 +320,7 @@ class _Menu1PageState extends State<Menu1Page> {
     }
 
     final qtyPo = qtyPoController.text;
-    if (selectedUnit == null ||
-        selectedJenisRm == null ||
-        qtyPo.isEmpty ||
-        selectedSupplier == null) {
+    if (selectedJenisRm == null || qtyPo.isEmpty || selectedSupplier == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Harap lengkapi semua field')),
       );
@@ -287,7 +332,6 @@ class _Menu1PageState extends State<Menu1Page> {
     );
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token'
-      ..fields['unit'] = selectedUnit!
       ..fields['jenis_rm'] = selectedJenisRm!
       ..fields['qty_po'] = qtyPo
       ..fields['supplier'] = selectedSupplier!
@@ -364,7 +408,6 @@ class _Menu1PageState extends State<Menu1Page> {
 
   void resetForm() {
     setState(() {
-      selectedUnit = null;
       selectedJenisRm = null;
       qtyPoController.clear();
       selectedSupplier = null;
@@ -535,41 +578,31 @@ class _Menu1PageState extends State<Menu1Page> {
                 ),
               ),
             ),
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Unit',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                'CK2',
-              ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: (v) {
-                setState(() {
-                  selectedUnit = v;
-                });
-              },
-            ),
             SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Jenis RM',
                 border: OutlineInputBorder(),
               ),
-              items: [
-                'WET CHICKEN',
-                'SAYURAN',
-                'DRY',
-                'ICE',
-              ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              value:
+                  (selectedJenisRm != null &&
+                      jenisRmList.contains(selectedJenisRm))
+                  ? selectedJenisRm
+                  : null,
+              items: jenisRmList
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              hint: const Text("Pilih Jenis RM"),
               onChanged: (v) {
                 setState(() {
                   selectedJenisRm = v;
-                  final tipeList = tipeRMOptions[v] ?? [];
-                  selectedTipeRM = tipeList.isNotEmpty ? tipeList.first : null;
+                  selectedSupplier = null;
+                  produsenController.clear();
                 });
               },
             ),
-            SizedBox(height: 12),
+
+            const SizedBox(height: 12),
             TextFormField(
               controller: qtyPoController,
               keyboardType: TextInputType.number,
@@ -580,43 +613,54 @@ class _Menu1PageState extends State<Menu1Page> {
             ),
             SizedBox(height: 12),
             isLoadingSuppliers
-                ? Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator())
                 : DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Supplier',
                       border: OutlineInputBorder(),
                     ),
                     value:
-                        suppliers.any(
-                          (item) => item['supplier'] == selectedSupplier,
-                        )
+                        (selectedSupplier != null &&
+                            suppliers.any(
+                              (item) => item['supplier'] == selectedSupplier,
+                            ))
                         ? selectedSupplier
                         : null,
-                    hint: Text('Pilih Supplier'),
+                    hint: const Text('Pilih Supplier'),
                     items: suppliers
+                        .where((item) => item['jenis_rm'] == selectedJenisRm)
                         .map(
                           (item) => DropdownMenuItem<String>(
-                            value: item['supplier'],
-                            child: Text(item['supplier']),
+                            value: item['supplier'] as String,
+                            child: Text(item['supplier'] as String),
                           ),
                         )
                         .toList(),
                     onChanged: (value) {
-                      print('Supplier selected: $value');
+                      if (value == null) return;
+
                       setState(() {
                         selectedSupplier = value;
+
                         final selected = suppliers.firstWhere(
                           (item) => item['supplier'] == value,
-                          orElse: () => {'produsen': ''},
+                          orElse: () => {'supplier': '', 'produsen': ''},
                         );
-                        produsen = selected['produsen'];
+                        final produsenValue =
+                            (selected['produsen'] as String?)?.isNotEmpty ==
+                                true
+                            ? selected['produsen'] as String
+                            : selected['supplier'] as String;
+
+                        produsen = produsenValue;
                         produsenController.text = produsen;
-                        print('Produsen updated: $produsen');
                       });
                     },
                   ),
 
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
+
+            // TextField Produsen
             TextFormField(
               controller: produsenController,
               enabled: false,
@@ -631,16 +675,35 @@ class _Menu1PageState extends State<Menu1Page> {
             SizedBox(height: 24),
             Center(
               child: ElevatedButton(
-                onPressed: () {
-                  submitData();
-                },
-                child: Text('Submit'),
+                onPressed: (!isFormComplete || isSaving)
+                    ? null
+                    : () async {
+                        setState(() => isSaving = true);
+
+                        await submitData();
+
+                        setState(() => isSaving = false);
+                      },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey,
+                  backgroundColor: (!isFormComplete || isSaving)
+                      ? Colors.grey
+                      : Colors.green,
                   foregroundColor: Colors.white,
+                  minimumSize: Size(120, 48),
                 ),
+                child: isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Submit'),
               ),
             ),
+
             SizedBox(height: 32),
             Card(
               color: Colors.grey[20],
@@ -962,31 +1025,34 @@ class _Menu1PageState extends State<Menu1Page> {
             ),
           ),
           if (receivedList.isNotEmpty) ...[
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 20),
+            const Text(
               "Riwayat Penerimaan",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            DataTable(
-              columns: const [
-                DataColumn(label: Text("No")),
-                DataColumn(label: Text("Berat (kg)")),
-                DataColumn(label: Text("Status")),
-                DataColumn(label: Text("Tipe RM")),
-                DataColumn(label: Text("Waktu")),
-              ],
-              rows: List.generate(receivedList.length, (index) {
-                final row = receivedList[index];
-                return DataRow(
-                  cells: [
-                    DataCell(Text("${index + 1}")),
-                    DataCell(Text(row["weight"])),
-                    DataCell(Text(row["status"] ?? "-")),
-                    DataCell(Text(row["type_rm"] ?? "-")),
-                    DataCell(Text(row["time"])),
-                  ],
-                );
-              }),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text("No")),
+                  DataColumn(label: Text("Berat (kg)")),
+                  DataColumn(label: Text("Status")),
+                  DataColumn(label: Text("Tipe RM")),
+                  DataColumn(label: Text("Waktu")),
+                ],
+                rows: List.generate(receivedList.length, (index) {
+                  final row = receivedList[index];
+                  return DataRow(
+                    cells: [
+                      DataCell(Text("${index + 1}")),
+                      DataCell(Text(row["weight"])),
+                      DataCell(Text(row["status"] ?? "-")),
+                      DataCell(Text(row["type_rm"] ?? "-")),
+                      DataCell(Text(row["time"])),
+                    ],
+                  );
+                }),
+              ),
             ),
           ],
         ],
