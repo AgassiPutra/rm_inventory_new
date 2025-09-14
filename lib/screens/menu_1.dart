@@ -490,220 +490,219 @@ class _Menu1PageState extends State<Menu1Page> {
               ),
             ),
             SizedBox(height: 16),
-            Card(
-              color: invoiceFile == null ? Colors.red[100] : Colors.green[100],
-              margin: EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Upload Invoice Supplier',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            invoiceFile == null
-                                ? 'Selected File\nNo file selected'
-                                : 'Selected File\n${invoiceFile!.name}',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ],
+            if (connectedDevice != null) ...[
+              Card(
+                color: invoiceFile == null
+                    ? Colors.red[100]
+                    : Colors.green[100],
+                margin: EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Upload Invoice Supplier',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              invoiceFile == null
+                                  ? 'Selected File\nNo file selected'
+                                  : 'Selected File\n${invoiceFile!.name}',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        _pickImage((file) {
-                          setState(() {
-                            invoiceFile = file;
+                      ElevatedButton(
+                        onPressed: () {
+                          _pickImage((file) {
+                            setState(() {
+                              invoiceFile = file;
+                            });
                           });
-                        });
-                      },
-                      child: Text('Choose File'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                        foregroundColor: Colors.white,
+                        },
+                        child: Text('Choose File'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Card(
-              color: suratJalanFile == null
-                  ? Colors.red[100]
-                  : Colors.green[100],
-              margin: EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Upload Surat Jalan',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            suratJalanFile == null
-                                ? 'Selected File\nNo file selected'
-                                : 'Selected File\n${suratJalanFile!.name}',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ],
+              Card(
+                color: suratJalanFile == null
+                    ? Colors.red[100]
+                    : Colors.green[100],
+                margin: EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Upload Surat Jalan',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              suratJalanFile == null
+                                  ? 'Selected File\nNo file selected'
+                                  : 'Selected File\n${suratJalanFile!.name}',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        _pickImage((file) {
-                          setState(() {
-                            suratJalanFile = file;
+                      ElevatedButton(
+                        onPressed: () {
+                          _pickImage((file) {
+                            setState(() {
+                              suratJalanFile = file;
+                            });
                           });
-                        });
-                      },
-                      child: Text('Choose File'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                        foregroundColor: Colors.white,
+                        },
+                        child: Text('Choose File'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: 'Jenis RM',
-                border: OutlineInputBorder(),
+              SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Jenis RM',
+                  border: OutlineInputBorder(),
+                ),
+                value:
+                    (selectedJenisRm != null &&
+                        jenisRmList.contains(selectedJenisRm))
+                    ? selectedJenisRm
+                    : null,
+                items: jenisRmList
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                hint: const Text("Pilih Jenis RM"),
+                onChanged: (v) {
+                  setState(() {
+                    selectedJenisRm = v;
+                    selectedSupplier = null;
+                    produsenController.clear();
+                  });
+                },
               ),
-              value:
-                  (selectedJenisRm != null &&
-                      jenisRmList.contains(selectedJenisRm))
-                  ? selectedJenisRm
-                  : null,
-              items: jenisRmList
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              hint: const Text("Pilih Jenis RM"),
-              onChanged: (v) {
-                setState(() {
-                  selectedJenisRm = v;
-                  selectedSupplier = null;
-                  produsenController.clear();
-                });
-              },
-            ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: qtyPoController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Qty PO',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 12),
+              isLoadingSuppliers
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Supplier',
+                        border: OutlineInputBorder(),
+                      ),
+                      value:
+                          (selectedSupplier != null &&
+                              suppliers.any(
+                                (item) => item['supplier'] == selectedSupplier,
+                              ))
+                          ? selectedSupplier
+                          : null,
+                      hint: const Text('Pilih Supplier'),
+                      items: suppliers
+                          .where((item) => item['jenis_rm'] == selectedJenisRm)
+                          .map(
+                            (item) => DropdownMenuItem<String>(
+                              value: item['supplier'] as String,
+                              child: Text(item['supplier'] as String),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
 
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: qtyPoController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Qty PO',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 12),
-            isLoadingSuppliers
-                ? const Center(child: CircularProgressIndicator())
-                : DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'Supplier',
-                      border: OutlineInputBorder(),
+                        setState(() {
+                          selectedSupplier = value;
+
+                          final selected = suppliers.firstWhere(
+                            (item) => item['supplier'] == value,
+                            orElse: () => {'supplier': '', 'produsen': ''},
+                          );
+                          final produsenValue =
+                              (selected['produsen'] as String?)?.isNotEmpty ==
+                                  true
+                              ? selected['produsen'] as String
+                              : selected['supplier'] as String;
+
+                          produsen = produsenValue;
+                          produsenController.text = produsen;
+                        });
+                      },
                     ),
-                    value:
-                        (selectedSupplier != null &&
-                            suppliers.any(
-                              (item) => item['supplier'] == selectedSupplier,
-                            ))
-                        ? selectedSupplier
-                        : null,
-                    hint: const Text('Pilih Supplier'),
-                    items: suppliers
-                        .where((item) => item['jenis_rm'] == selectedJenisRm)
-                        .map(
-                          (item) => DropdownMenuItem<String>(
-                            value: item['supplier'] as String,
-                            child: Text(item['supplier'] as String),
+
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: produsenController,
+                enabled: false,
+                decoration: InputDecoration(
+                  labelText: 'Produsen',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.grey[200],
+                ),
+              ),
+              SizedBox(height: 24),
+              Center(
+                child: ElevatedButton(
+                  onPressed: (!isFormComplete || isSaving)
+                      ? null
+                      : () async {
+                          setState(() => isSaving = true);
+
+                          await submitData();
+
+                          setState(() => isSaving = false);
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: (!isFormComplete || isSaving)
+                        ? Colors.grey
+                        : Colors.green,
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(120, 48),
+                  ),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
                           ),
                         )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-
-                      setState(() {
-                        selectedSupplier = value;
-
-                        final selected = suppliers.firstWhere(
-                          (item) => item['supplier'] == value,
-                          orElse: () => {'supplier': '', 'produsen': ''},
-                        );
-                        final produsenValue =
-                            (selected['produsen'] as String?)?.isNotEmpty ==
-                                true
-                            ? selected['produsen'] as String
-                            : selected['supplier'] as String;
-
-                        produsen = produsenValue;
-                        produsenController.text = produsen;
-                      });
-                    },
-                  ),
-
-            const SizedBox(height: 12),
-
-            // TextField Produsen
-            TextFormField(
-              controller: produsenController,
-              enabled: false,
-              decoration: InputDecoration(
-                labelText: 'Produsen',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.grey[200],
-              ),
-            ),
-
-            SizedBox(height: 24),
-            Center(
-              child: ElevatedButton(
-                onPressed: (!isFormComplete || isSaving)
-                    ? null
-                    : () async {
-                        setState(() => isSaving = true);
-
-                        await submitData();
-
-                        setState(() => isSaving = false);
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: (!isFormComplete || isSaving)
-                      ? Colors.grey
-                      : Colors.green,
-                  foregroundColor: Colors.white,
-                  minimumSize: Size(120, 48),
+                      : const Text('Submit'),
                 ),
-                child: isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('Submit'),
               ),
-            ),
-
+            ],
             SizedBox(height: 32),
             Card(
               color: Colors.grey[20],
@@ -770,7 +769,6 @@ class _Menu1PageState extends State<Menu1Page> {
                           ),
                       ],
                     ),
-
                     SizedBox(height: 24),
                     if (connectedDevice != null) ...[
                       Text('Status Penerimaan:'),
