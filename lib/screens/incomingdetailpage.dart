@@ -556,6 +556,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                         onPressed: updateQuantityLoss,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ],
