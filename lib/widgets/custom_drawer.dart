@@ -34,7 +34,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     setState(() {
       nama = prefs.getString('nama') ?? '';
       posisi = prefs.getString('posisi') ?? '';
-      unit = prefs.getString('unit') ?? '';
+      unit = prefs.getString('jenis_unit') ?? '';
     });
   }
 
@@ -95,7 +95,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           const Divider(),
           ListTile(
             title: const Text(
-              'Versi 0.2.2',
+              'Versi 0.2.3',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),
