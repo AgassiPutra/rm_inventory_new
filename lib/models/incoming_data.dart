@@ -16,7 +16,7 @@ class IncomingData {
       faktur: json['faktur'],
       tanggalIncoming: DateTime.parse(json['tanggal_incoming']),
       jenisRm: json['jenis_rm'],
-      qtyIn: (json['qty_in'] ?? 0).toDouble(), // parsing qty_in
+      qtyIn: (json['qty_in'] ?? 0).toDouble(),
     );
   }
 }
