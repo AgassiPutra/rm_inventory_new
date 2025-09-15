@@ -177,7 +177,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         });
       }
     } catch (e) {
-      debugPrint("❌ Error menghubungkan ke perangkat: $e");
+      debugPrint("Error menghubungkan ke perangkat: $e");
       if (mounted) {
         setState(() {
           connectedDevice = null;
@@ -193,7 +193,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
         Future.delayed(Duration(seconds: 3), () {
           if (mounted && connectedDevice == null) {
-            debugPrint("🔄 Mencoba reconnect ke ${device.name}");
+            debugPrint("Mencoba reconnect ke ${device.name}");
             connectToDevice(device);
           }
         });
@@ -414,15 +414,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Incoming Detail'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('OK', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text('Incoming Detail')),
       body: Column(
         children: [
           Expanded(
