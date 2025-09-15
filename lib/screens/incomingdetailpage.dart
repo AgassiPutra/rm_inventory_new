@@ -563,7 +563,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   _buildSection(
                     title: 'Scale Data',
                     children: [
-                      // Penimbangan UI (Bluetooth scale)
                       Card(
                         color: Colors.grey[20],
                         shape: RoundedRectangleBorder(
@@ -700,7 +699,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                           ),
                         ),
                       ),
-                      // Riwayat data timbangan (history) - ensure correct API mapping
                       _buildScaleHistorySection(
                         scaleData.fold<double>(
                           0,
