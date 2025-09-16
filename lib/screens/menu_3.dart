@@ -121,7 +121,7 @@ class _Menu3PageState extends State<Menu3Page> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: jenisRm,
+                      value: jenisRmOptions.contains(jenisRm) ? jenisRm : null,
                       items: jenisRmOptions
                           .map(
                             (e) => DropdownMenuItem(value: e, child: Text(e)),
