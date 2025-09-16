@@ -185,7 +185,7 @@ class _Menu3PageState extends State<Menu3Page> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: satuan,
+                      value: satuanOptions.contains(satuan) ? satuan : null,
                       items: satuanOptions
                           .map(
                             (e) => DropdownMenuItem(value: e, child: Text(e)),
