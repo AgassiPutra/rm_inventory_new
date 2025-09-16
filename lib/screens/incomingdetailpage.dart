@@ -491,6 +491,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 pw.Text('Scale Data Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 4),
                 pw.Text('Supplier: $supplier', style: pw.TextStyle(fontSize: 16)),
+                pw.Text('Jenis RM: $selectedJenisRm', style: pw.TextStyle(fontSize: 16)),
                 pw.Text('Faktur: $faktur', style: pw.TextStyle(fontSize: 16)),
                 pw.Text('Date: ${now.day} ${_monthName(now.month)} ${now.year}, ${_formatTime(now)}', style: pw.TextStyle(fontSize: 14)),
                 pw.Divider(),
