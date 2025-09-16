@@ -394,9 +394,18 @@ class _Menu1PageState extends State<Menu1Page> {
           context,
         ).showSnackBar(const SnackBar(content: Text('Data berhasil dikirim')));
       } else {
+        String errorMsg = 'Gagal kirim';
+        try {
+          final errJson = jsonDecode(resBody);
+          if (errJson is Map && errJson['error'] is String) {
+            errorMsg = 'Gagal kirim: ${errJson['error']}';
+          }
+        } catch (_) {
+          errorMsg = 'Gagal kirim: $resBody';
+        }
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Gagal kirim: $resBody')));
+        ).showSnackBar(SnackBar(content: Text(errorMsg)));
       }
     } catch (e) {
       debugPrint("Error: $e");
