@@ -1051,7 +1051,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
             (() {
               if (title == 'Riwayat Data Timbangan') {
                 if (kIsWeb) {
-                  // Web: tombol di samping judul
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1125,7 +1124,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                     ],
                   );
                 } else {
-                  // Mobile: tombol di bawah judul dan full width
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1204,7 +1202,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   );
                 }
               } else {
-                // Section lain
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
