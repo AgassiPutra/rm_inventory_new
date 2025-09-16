@@ -278,6 +278,7 @@ class _Menu2PageState extends State<Menu2Page> {
                             DataColumn(label: Text('Unit')),
                             DataColumn(label: Text('Jenis RM')),
                             DataColumn(label: Text('Supplier')),
+                            DataColumn(label: Text('Tanggal')),
                             DataColumn(label: Text('Action')),
                           ],
                           rows: filteredData.map((row) {
@@ -287,6 +288,7 @@ class _Menu2PageState extends State<Menu2Page> {
                                 DataCell(Text(row['unit'] ?? '')),
                                 DataCell(Text(row['jenis_rm'] ?? '')),
                                 DataCell(Text(row['supplier'] ?? '')),
+                                DataCell(Text(row['tanggal_incoming'] ?? '')),
                                 DataCell(
                                   IconButton(
                                     icon: Icon(Icons.edit, color: Colors.blue),

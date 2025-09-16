@@ -4,12 +4,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:typed_data';
+import 'dart:html' as html;
 
 import 'package:rm_inventory_new/ble/bluetooth_manager_web.dart' as web;
 import '../models/app_bluetooth_device.dart';
 import 'dart:async';
 import '../ble/permission_handler.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 class IncomingDetailPage extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -410,6 +413,160 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
+
+  void exportScaleDataToCSV(List<Map<String, dynamic>> scaleData) {
+    final safeFaktur = widget.data['faktur'].replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final safeSupplier = widget.data['supplier'].replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final fileName = 'report_${safeFaktur}_${safeSupplier}.csv';
+    final headers = [
+      'No',
+      'Weight (kg)',
+      'Date',
+      'Time',
+      'Type',
+      'Status',
+      'User',
+    ];
+    final rows = List.generate(scaleData.length, (i) {
+      final item = scaleData[i];
+      String date = '';
+      String time = '';
+      if (item['date_time'] != null && item['date_time'].toString().contains(',')) {
+        final parts = item['date_time'].toString().split(',');
+        if (parts.length == 2) {
+          date = parts[0].trim();
+          time = parts[1].trim();
+        } else {
+          date = item['date_time'].toString();
+        }
+      } else if (item['date_time'] != null && item['date_time'].toString().contains(' ')) {
+        final parts = item['date_time'].toString().split(' ');
+        if (parts.length == 2) {
+          date = parts[0].trim();
+          time = parts[1].trim();
+        } else {
+          date = item['date_time'].toString();
+        }
+      } else {
+        date = item['date_time']?.toString() ?? '';
+      }
+      return [
+        '${i + 1}',
+        item['weight']?.toString() ?? '',
+        date,
+        time,
+        item['type_rm']?.toString() ?? '',
+        item['status']?.toString() ?? '',
+        item['user']?.toString() ?? '',
+      ];
+    });
+    final csvContent = StringBuffer();
+    csvContent.writeln(headers.join(','));
+    for (final row in rows) {
+      csvContent.writeln(row.map((e) => '"$e"').join(','));
+    }
+    downloadCsvWeb(csvContent.toString(), fileName: fileName);
+  }
+
+  Future<void> exportScaleDataToPDF({
+    required List<Map<String, dynamic>> scaleData,
+    required String faktur,
+    required String supplier,
+    required double totalWeight,
+    required int totalCount,
+    required pw.Document pdfDoc,
+  }) async {
+    final now = DateTime.now();
+    final safeFaktur = faktur.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final safeSupplier = supplier.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final fileName = 'report_${safeFaktur}_${safeSupplier}.pdf';
+    pdfDoc.addPage(
+      pw.MultiPage(
+        build: (context) {
+          List<pw.Widget> widgets = [];
+          widgets.add(
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Scale Data Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                pw.Text('Supplier: $supplier', style: pw.TextStyle(fontSize: 16)),
+                pw.Text('Faktur: $faktur', style: pw.TextStyle(fontSize: 16)),
+                pw.Text('Date: ${now.day} ${_monthName(now.month)} ${now.year}, ${_formatTime(now)}', style: pw.TextStyle(fontSize: 14)),
+                pw.Divider(),
+                pw.Container(
+                  color: PdfColors.grey200,
+                  padding: pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('Total Weight: ${totalWeight.toStringAsFixed(2)} kg', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text('Total Count: $totalCount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Text('Scale Measurements', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+          );
+          widgets.add(
+            pw.Table.fromTextArray(
+              headers: ['No', 'Weight (kg)', 'Date & Time', 'Type', 'Status', 'User'],
+              data: List.generate(scaleData.length, (i) {
+                final item = scaleData[i];
+                return [
+                  '${i + 1}',
+                  item['weight']?.toString() ?? '',
+                  item['date_time']?.toString() ?? '',
+                  item['type_rm']?.toString() ?? '',
+                  item['status']?.toString() ?? '',
+                  item['user']?.toString() ?? '',
+                ];
+              }),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              headerDecoration: pw.BoxDecoration(color: PdfColors.blue),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellStyle: pw.TextStyle(fontSize: 10),
+              cellHeight: 20,
+              border: pw.TableBorder.all(color: PdfColors.grey400),
+            ),
+          );
+          widgets.add(
+            pw.SizedBox(height: 12),
+          );
+          widgets.add(
+            pw.Text('Generated on ${_formatDateTime(now)}', style: pw.TextStyle(fontSize: 10)),
+          );
+          return widgets;
+        },
+      ),
+    );
+    downloadPdfWeb(pdfDoc, fileName: fileName);
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[month - 1];
+  }
+
+  String _formatTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  String _formatDateTime(DateTime dt) =>
+      '${dt.day} ${_monthName(dt.month)} ${dt.year}, ${_formatTime(dt)}';
 
   @override
   Widget build(BuildContext context) {
@@ -890,9 +1047,75 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                if (title == 'Riwayat Data Timbangan')
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.file_download),
+                    label: Text('Export'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      minimumSize: Size(120, 36),
+                    ),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: Text('Export Data Timbangan'),
+                          content: Text('Pilih format export:'),
+                          actions: [
+                            TextButton.icon(
+                              icon: Icon(Icons.file_download),
+                              label: Text('CSV'),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                exportScaleDataToCSV(scaleData);
+                              },
+                            ),
+                            TextButton.icon(
+                              icon: Icon(Icons.picture_as_pdf),
+                              label: Text('PDF'),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                final pdfDoc = pw.Document();
+                                exportScaleDataToPDF(
+                                  scaleData: scaleData,
+                                  faktur: widget.data['faktur'] ?? '',
+                                  supplier: widget.data['supplier'] ?? '',
+                                  totalWeight: scaleData.fold<double>(
+                                    0,
+                                    (sum, item) =>
+                                        sum +
+                                        (item['weight'] is num
+                                            ? item['weight']
+                                            : double.tryParse(
+                                                    item['weight']
+                                                            ?.toString() ??
+                                                        '0',
+                                                  ) ??
+                                                  0),
+                                  ),
+                                  totalCount: scaleData.length,
+                                  pdfDoc: pdfDoc,
+                                );
+                              },
+                            ),
+                            TextButton(
+                              child: Text('Batal'),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
             if (subtitle != null) ...[
               SizedBox(height: 4),
@@ -1169,10 +1392,20 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 return DataRow(
                   cells: [
                     DataCell(Text("${index + 1}")),
-                    DataCell(Text(row["weight"])),
-                    DataCell(Text(row["status"] ?? "-")),
-                    DataCell(Text(row["type_rm"] ?? "-")),
-                    DataCell(Text(row["time"])),
+                    DataCell(Text(row["weight"].toString())),
+                    DataCell(
+                      Text(
+                        row["status"] != null ? row["status"].toString() : "-",
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        row["type_rm"] != null
+                            ? row["type_rm"].toString()
+                            : "-",
+                      ),
+                    ),
+                    DataCell(Text(row["time"].toString())),
                   ],
                 );
               }),
@@ -1266,6 +1499,29 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         ),
       ),
     );
+  }
+
+  void downloadPdfWeb(
+    pw.Document pdfDoc, {
+    String fileName = 'report.pdf',
+  }) async {
+    final bytes = await pdfDoc.save();
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName);
+    anchor.click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  void downloadCsvWeb(String csvContent, {String fileName = 'report.csv'}) {
+    final bytes = utf8.encode(csvContent);
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName);
+    anchor.click();
+    html.Url.revokeObjectUrl(url);
   }
 }
 
