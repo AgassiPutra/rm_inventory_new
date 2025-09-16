@@ -1048,76 +1048,175 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                if (title == 'Riwayat Data Timbangan')
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.file_download),
-                    label: Text('Export'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      minimumSize: Size(120, 36),
-                    ),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: Text('Export Data Timbangan'),
-                          content: Text('Pilih format export:'),
-                          actions: [
-                            TextButton.icon(
-                              icon: Icon(Icons.file_download),
-                              label: Text('CSV'),
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                exportScaleDataToCSV(scaleData);
-                              },
-                            ),
-                            TextButton.icon(
-                              icon: Icon(Icons.picture_as_pdf),
-                              label: Text('PDF'),
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                final pdfDoc = pw.Document();
-                                exportScaleDataToPDF(
-                                  scaleData: scaleData,
-                                  faktur: widget.data['faktur'] ?? '',
-                                  supplier: widget.data['supplier'] ?? '',
-                                  totalWeight: scaleData.fold<double>(
-                                    0,
-                                    (sum, item) =>
-                                        sum +
-                                        (item['weight'] is num
-                                            ? item['weight']
-                                            : double.tryParse(
-                                                    item['weight']
-                                                            ?.toString() ??
-                                                        '0',
-                                                  ) ??
-                                                  0),
-                                  ),
-                                  totalCount: scaleData.length,
-                                  pdfDoc: pdfDoc,
-                                );
-                              },
-                            ),
-                            TextButton(
-                              child: Text('Batal'),
-                              onPressed: () => Navigator.pop(ctx),
-                            ),
-                          ],
+            (() {
+              if (title == 'Riwayat Data Timbangan') {
+                if (kIsWeb) {
+                  // Web: tombol di samping judul
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      );
-                    },
-                  ),
-              ],
-            ),
+                      ),
+                      ElevatedButton.icon(
+                        icon: Icon(Icons.file_download),
+                        label: Text('Export'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          minimumSize: Size(120, 36),
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text('Export Data Timbangan'),
+                              content: Text('Pilih format export:'),
+                              actions: [
+                                TextButton.icon(
+                                  icon: Icon(Icons.file_download),
+                                  label: Text('CSV'),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    exportScaleDataToCSV(scaleData);
+                                  },
+                                ),
+                                TextButton.icon(
+                                  icon: Icon(Icons.picture_as_pdf),
+                                  label: Text('PDF'),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    final pdfDoc = pw.Document();
+                                    exportScaleDataToPDF(
+                                      scaleData: scaleData,
+                                      faktur: widget.data['faktur'] ?? '',
+                                      supplier: widget.data['supplier'] ?? '',
+                                      totalWeight: scaleData.fold<double>(
+                                        0,
+                                        (sum, item) =>
+                                            sum +
+                                            (item['weight'] is num
+                                                ? item['weight']
+                                                : double.tryParse(
+                                                        item['weight']
+                                                                ?.toString() ??
+                                                            '0',
+                                                      ) ??
+                                                      0),
+                                      ),
+                                      totalCount: scaleData.length,
+                                      pdfDoc: pdfDoc,
+                                    );
+                                  },
+                                ),
+                                TextButton(
+                                  child: Text('Batal'),
+                                  onPressed: () => Navigator.pop(ctx),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                } else {
+                  // Mobile: tombol di bawah judul dan full width
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: Icon(Icons.file_download),
+                            label: Text('Export'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              minimumSize: Size(double.infinity, 36),
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: Text('Export Data Timbangan'),
+                                  content: Text('Pilih format export:'),
+                                  actions: [
+                                    TextButton.icon(
+                                      icon: Icon(Icons.file_download),
+                                      label: Text('CSV'),
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        exportScaleDataToCSV(scaleData);
+                                      },
+                                    ),
+                                    TextButton.icon(
+                                      icon: Icon(Icons.picture_as_pdf),
+                                      label: Text('PDF'),
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        final pdfDoc = pw.Document();
+                                        exportScaleDataToPDF(
+                                          scaleData: scaleData,
+                                          faktur: widget.data['faktur'] ?? '',
+                                          supplier: widget.data['supplier'] ?? '',
+                                          totalWeight: scaleData.fold<double>(
+                                            0,
+                                            (sum, item) =>
+                                                sum +
+                                                (item['weight'] is num
+                                                    ? item['weight']
+                                                    : double.tryParse(
+                                                            item['weight']
+                                                                    ?.toString() ??
+                                                                '0',
+                                                          ) ??
+                                                          0),
+                                          ),
+                                          totalCount: scaleData.length,
+                                          pdfDoc: pdfDoc,
+                                        );
+                                      },
+                                    ),
+                                    TextButton(
+                                      child: Text('Batal'),
+                                      onPressed: () => Navigator.pop(ctx),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+              } else {
+                // Section lain
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                );
+              }
+            })(),
             if (subtitle != null) ...[
               SizedBox(height: 4),
               Text(subtitle, style: TextStyle(color: Colors.grey)),
