@@ -64,14 +64,19 @@ class _Menu2PageState extends State<Menu2Page> {
         final supplierMatch =
             supplier.isEmpty ||
             (row['supplier'] ?? '').toLowerCase().contains(supplier);
+
         bool tanggalMatch = true;
-        if (tanggalAwal.isNotEmpty && tanggalAkhir.isNotEmpty) {
-          final tanggalIncoming = row['tanggal_incoming'] ?? '';
-          if (tanggalIncoming.isNotEmpty) {
-            tanggalMatch =
-                tanggalIncoming.compareTo(tanggalAwal) >= 0 &&
-                tanggalIncoming.compareTo(tanggalAkhir) <= 0;
-          }
+        final tanggalIncoming = row['tanggal_incoming'] ?? '';
+        if (tanggalAwal.isNotEmpty &&
+            tanggalAkhir.isNotEmpty &&
+            tanggalIncoming.isNotEmpty) {
+          tanggalMatch =
+              tanggalIncoming.compareTo(tanggalAwal) >= 0 &&
+              tanggalIncoming.compareTo(tanggalAkhir) <= 0;
+        } else if (tanggalAwal.isNotEmpty && tanggalIncoming.isNotEmpty) {
+          tanggalMatch = tanggalIncoming.compareTo(tanggalAwal) >= 0;
+        } else if (tanggalAkhir.isNotEmpty && tanggalIncoming.isNotEmpty) {
+          tanggalMatch = tanggalIncoming.compareTo(tanggalAkhir) <= 0;
         }
 
         return fakturMatch &&
