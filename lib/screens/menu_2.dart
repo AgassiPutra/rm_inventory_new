@@ -16,6 +16,8 @@ class _Menu2PageState extends State<Menu2Page> {
   final unitController = TextEditingController();
   final typeController = TextEditingController();
   final supplierController = TextEditingController();
+  final tanggalAwalController = TextEditingController();
+  final tanggalAkhirController = TextEditingController();
 
   List<Map<String, dynamic>> data = [];
   late List<Map<String, dynamic>> filteredData = [];
@@ -36,6 +38,8 @@ class _Menu2PageState extends State<Menu2Page> {
     unitController.dispose();
     typeController.dispose();
     supplierController.dispose();
+    tanggalAwalController.dispose();
+    tanggalAkhirController.dispose();
     super.dispose();
   }
 
@@ -44,20 +48,37 @@ class _Menu2PageState extends State<Menu2Page> {
     final unit = unitController.text.trim().toLowerCase();
     final type = typeController.text.trim().toLowerCase();
     final supplier = supplierController.text.trim().toLowerCase();
+    final tanggalAwal = tanggalAwalController.text;
+    final tanggalAkhir = tanggalAkhirController.text;
 
     setState(() {
       filteredData = data.where((row) {
         final fakturMatch =
-            faktur.isEmpty || row['faktur']!.toLowerCase().contains(faktur);
+            faktur.isEmpty ||
+            (row['faktur'] ?? '').toLowerCase().contains(faktur);
         final unitMatch =
-            unit.isEmpty || row['unit']!.toLowerCase().contains(unit);
+            unit.isEmpty || (row['unit'] ?? '').toLowerCase().contains(unit);
         final typeMatch =
-            type.isEmpty || row['jenis_rm']!.toLowerCase().contains(type);
+            type.isEmpty ||
+            (row['jenis_rm'] ?? '').toLowerCase().contains(type);
         final supplierMatch =
             supplier.isEmpty ||
-            row['supplier']!.toLowerCase().contains(supplier);
+            (row['supplier'] ?? '').toLowerCase().contains(supplier);
+        bool tanggalMatch = true;
+        if (tanggalAwal.isNotEmpty && tanggalAkhir.isNotEmpty) {
+          final tanggalIncoming = row['tanggal_incoming'] ?? '';
+          if (tanggalIncoming.isNotEmpty) {
+            tanggalMatch =
+                tanggalIncoming.compareTo(tanggalAwal) >= 0 &&
+                tanggalIncoming.compareTo(tanggalAkhir) <= 0;
+          }
+        }
 
-        return fakturMatch && unitMatch && typeMatch && supplierMatch;
+        return fakturMatch &&
+            unitMatch &&
+            typeMatch &&
+            supplierMatch &&
+            tanggalMatch;
       }).toList();
     });
   }
@@ -86,16 +107,36 @@ class _Menu2PageState extends State<Menu2Page> {
 
     try {
       final token = await getToken();
+      print('Token: $token');
+
+      if (token == null) {
+        setState(() {
+          errorMessage = 'Token tidak ditemukan. Silakan login ulang.';
+          isLoading = false;
+        });
+        print('Token null, keluar dari fetch');
+        return;
+      }
+      final tanggalAwal = tanggalAwalController.text.isNotEmpty
+          ? tanggalAwalController.text
+          : '2025-09-01';
+      final tanggalAkhir = tanggalAkhirController.text.isNotEmpty
+          ? tanggalAkhirController.text
+          : '2025-09-16';
+
+      final url =
+          'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+
       final response = await http.get(
-        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm'),
+        Uri.parse(url),
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      // print('Status: ${response.statusCode}');
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        // print('FULL RESPONSE: $jsonData');
-
         final List<dynamic> items = jsonData['data'];
 
         setState(() {
@@ -156,6 +197,54 @@ class _Menu2PageState extends State<Menu2Page> {
                   prefixIcon: Icon(Icons.local_shipping),
                 ),
               ),
+              GestureDetector(
+                onTap: () async {
+                  DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    tanggalAwalController.text = picked
+                        .toIso8601String()
+                        .substring(0, 10);
+                  }
+                },
+                child: AbsorbPointer(
+                  child: TextField(
+                    controller: tanggalAwalController,
+                    decoration: InputDecoration(
+                      labelText: 'Tanggal Awal (YYYY-MM-DD)',
+                      prefixIcon: Icon(Icons.date_range),
+                    ),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () async {
+                  DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    tanggalAkhirController.text = picked
+                        .toIso8601String()
+                        .substring(0, 10);
+                  }
+                },
+                child: AbsorbPointer(
+                  child: TextField(
+                    controller: tanggalAkhirController,
+                    decoration: InputDecoration(
+                      labelText: 'Tanggal Akhir (YYYY-MM-DD)',
+                      prefixIcon: Icon(Icons.date_range),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -163,13 +252,16 @@ class _Menu2PageState extends State<Menu2Page> {
           TextButton(
             onPressed: () {
               clearFilter();
+              tanggalAwalController.clear();
+              tanggalAkhirController.clear();
+              fetchIncomingRM();
               Navigator.pop(context);
             },
             child: Text('Clear'),
           ),
           ElevatedButton(
             onPressed: () {
-              applyFilter();
+              fetchIncomingRM();
               Navigator.pop(context);
             },
             child: Text('Apply'),
@@ -249,7 +341,7 @@ class _Menu2PageState extends State<Menu2Page> {
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () {
-              clearFilter();
+              fetchIncomingRM();
             },
           ),
           IconButton(icon: Icon(Icons.person), onPressed: () {}),
