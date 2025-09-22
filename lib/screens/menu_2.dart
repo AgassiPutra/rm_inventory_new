@@ -382,7 +382,32 @@ class _Menu2PageState extends State<Menu2Page> {
                             return DataRow(
                               cells: [
                                 DataCell(Text(row['faktur'] ?? '')),
-                                DataCell(Text(row['unit'] ?? '')),
+                                DataCell(
+                                  (row['unit'] ?? '')
+                                          .toString()
+                                          .toUpperCase()
+                                          .contains('CK')
+                                      ? Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue[100],
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            row['unit'] ?? '',
+                                            style: TextStyle(
+                                              color: Colors.blue[900],
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        )
+                                      : Text(row['unit'] ?? ''),
+                                ),
                                 DataCell(Text(row['jenis_rm'] ?? '')),
                                 DataCell(Text(row['supplier'] ?? '')),
                                 DataCell(Text(row['tanggal_incoming'] ?? '')),
