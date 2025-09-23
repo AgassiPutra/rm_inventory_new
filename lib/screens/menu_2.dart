@@ -23,6 +23,8 @@ class _Menu2PageState extends State<Menu2Page> {
   late List<Map<String, dynamic>> filteredData = [];
   bool isLoading = true;
   String? errorMessage;
+  int? _sortColumnIndex;
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -41,6 +43,24 @@ class _Menu2PageState extends State<Menu2Page> {
     tanggalAwalController.dispose();
     tanggalAkhirController.dispose();
     super.dispose();
+  }
+
+  void _sort<T>(
+    Comparable<T> Function(Map<String, dynamic> d) getField,
+    int columnIndex,
+    bool ascending,
+  ) {
+    setState(() {
+      filteredData.sort((a, b) {
+        final aValue = getField(a);
+        final bValue = getField(b);
+        return ascending
+            ? Comparable.compare(aValue, bValue)
+            : Comparable.compare(bValue, aValue);
+      });
+      _sortColumnIndex = columnIndex;
+      _sortAscending = ascending;
+    });
   }
 
   void applyFilter() {
@@ -366,16 +386,41 @@ class _Menu2PageState extends State<Menu2Page> {
                   child: isLoading
                       ? Center(child: CircularProgressIndicator())
                       : DataTable(
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _sortAscending,
                           headingRowColor: MaterialStateProperty.all(
                             Colors.blue[50],
                           ),
                           columnSpacing: 24,
                           columns: [
-                            DataColumn(label: Text('Faktur')),
-                            DataColumn(label: Text('Unit')),
-                            DataColumn(label: Text('Jenis RM')),
-                            DataColumn(label: Text('Supplier')),
-                            DataColumn(label: Text('Tanggal')),
+                            DataColumn(
+                              label: Text('Faktur'),
+                              onSort: (i, asc) =>
+                                  _sort((d) => d['faktur'] ?? '', i, asc),
+                            ),
+                            DataColumn(
+                              label: Text('Unit'),
+                              onSort: (i, asc) =>
+                                  _sort((d) => d['unit'] ?? '', i, asc),
+                            ),
+                            DataColumn(
+                              label: Text('Jenis RM'),
+                              onSort: (i, asc) =>
+                                  _sort((d) => d['jenis_rm'] ?? '', i, asc),
+                            ),
+                            DataColumn(
+                              label: Text('Supplier'),
+                              onSort: (i, asc) =>
+                                  _sort((d) => d['supplier'] ?? '', i, asc),
+                            ),
+                            DataColumn(
+                              label: Text('Tanggal'),
+                              onSort: (i, asc) => _sort(
+                                (d) => d['tanggal_incoming'] ?? '',
+                                i,
+                                asc,
+                              ),
+                            ),
                             DataColumn(label: Text('Action')),
                           ],
                           rows: filteredData.map((row) {
