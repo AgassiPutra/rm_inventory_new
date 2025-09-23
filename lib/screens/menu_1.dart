@@ -398,10 +398,10 @@ class _Menu1PageState extends State<Menu1Page> {
         try {
           final errJson = jsonDecode(resBody);
           if (errJson is Map && errJson['error'] is String) {
-            errorMsg = 'Gagal kirim: ${errJson['error']}';
+            errorMsg = errJson['error'];
           }
         } catch (_) {
-          errorMsg = 'Gagal kirim: $resBody';
+          errorMsg = resBody;
         }
         ScaffoldMessenger.of(
           context,
