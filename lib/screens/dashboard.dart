@@ -35,8 +35,9 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-    startDate = DateTime.now();
-    endDate = DateTime.now();
+    final now = DateTime.now();
+    startDate = DateTime(now.year, now.month, 1);
+    endDate = DateTime(now.year, now.month, now.day);
     fetchDataFromAPI();
     Auth.check(context);
   }
@@ -56,8 +57,12 @@ class _DashboardPageState extends State<DashboardPage> {
       );
       return;
     }
+    final DateFormat formatter = DateFormat('yyyy-MM-dd');
+    final String tanggalAwal = formatter.format(startDate!);
+    final String tanggalAkhir = formatter.format(endDate!);
 
-    const url = 'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm';
+    final url =
+        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
 
     try {
       final response = await http.get(
@@ -67,6 +72,9 @@ class _DashboardPageState extends State<DashboardPage> {
           'Content-Type': 'application/json',
         },
       );
+
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
@@ -146,7 +154,9 @@ class _DashboardPageState extends State<DashboardPage> {
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
+        isLoading = true;
       });
+      await fetchDataFromAPI();
     }
   }
 
