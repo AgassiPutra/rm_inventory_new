@@ -208,8 +208,15 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
 
+    final now = DateTime.now();
+    final tanggalAwal = DateTime(now.year, now.month, 1);
+    final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
+
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?Faktur=$faktur",
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm"
+      "?Faktur=$faktur"
+      "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
+      "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
     );
 
     try {
@@ -221,30 +228,37 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         },
       );
 
+      // print(">>> STATUS: ${response.statusCode}");
+      // print(">>> BODY: ${response.body}");
+
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
 
-        print("DEBUG incoming-rm response: $decoded");
-
         if (decoded is Map && decoded.containsKey('data')) {
           final dataList = decoded['data'];
-          if (dataList is List) {
+
+          if (dataList is List && dataList.isNotEmpty) {
             final match = dataList.firstWhere(
-              (item) => item['faktur'] == faktur,
+              (item) =>
+                  item['faktur'].toString().trim() == faktur.toString().trim(),
               orElse: () => null,
             );
 
-            setState(() {
-              _qtyLoss = match?['qty_losses']?.toString() ?? '0';
-              quantityLossController.text = _qtyLoss;
-              isLoading = false;
-            });
+            if (match != null) {
+              print(
+                ">>> MATCH faktur: ${match['faktur']} | qty_losses: ${match['qty_losses']}",
+              );
+
+              setState(() {
+                _qtyLoss = match['qty_losses']?.toString() ?? _qtyLoss;
+                quantityLossController.text = _qtyLoss;
+                isLoading = false;
+              });
+            } else {
+              print(">>> faktur tidak ditemukan di data API");
+              setState(() => isLoading = false);
+            }
           }
-        } else {
-          setState(() {
-            _qtyLoss = '0';
-            isLoading = false;
-          });
         }
       } else {
         setState(() => isLoading = false);
@@ -415,8 +429,14 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   }
 
   void exportScaleDataToCSV(List<Map<String, dynamic>> scaleData) {
-    final safeFaktur = widget.data['faktur'].replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    final safeSupplier = widget.data['supplier'].replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final safeFaktur = widget.data['faktur'].replaceAll(
+      RegExp(r'[^a-zA-Z0-9]'),
+      '_',
+    );
+    final safeSupplier = widget.data['supplier'].replaceAll(
+      RegExp(r'[^a-zA-Z0-9]'),
+      '_',
+    );
     final fileName = 'report_${safeFaktur}_${safeSupplier}.csv';
     final headers = [
       'No',
@@ -431,7 +451,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       final item = scaleData[i];
       String date = '';
       String time = '';
-      if (item['date_time'] != null && item['date_time'].toString().contains(',')) {
+      if (item['date_time'] != null &&
+          item['date_time'].toString().contains(',')) {
         final parts = item['date_time'].toString().split(',');
         if (parts.length == 2) {
           date = parts[0].trim();
@@ -439,7 +460,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         } else {
           date = item['date_time'].toString();
         }
-      } else if (item['date_time'] != null && item['date_time'].toString().contains(' ')) {
+      } else if (item['date_time'] != null &&
+          item['date_time'].toString().contains(' ')) {
         final parts = item['date_time'].toString().split(' ');
         if (parts.length == 2) {
           date = parts[0].trim();
@@ -488,12 +510,27 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('Scale Data Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.Text(
+                  'Scale Data Report',
+                  style: pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text('Supplier: $supplier', style: pw.TextStyle(fontSize: 16)),
-                pw.Text('Jenis RM: $selectedJenisRm', style: pw.TextStyle(fontSize: 16)),
+                pw.Text(
+                  'Supplier: $supplier',
+                  style: pw.TextStyle(fontSize: 16),
+                ),
+                pw.Text(
+                  'Jenis RM: $selectedJenisRm',
+                  style: pw.TextStyle(fontSize: 16),
+                ),
                 pw.Text('Faktur: $faktur', style: pw.TextStyle(fontSize: 16)),
-                pw.Text('Date: ${now.day} ${_monthName(now.month)} ${now.year}, ${_formatTime(now)}', style: pw.TextStyle(fontSize: 14)),
+                pw.Text(
+                  'Date: ${now.day} ${_monthName(now.month)} ${now.year}, ${_formatTime(now)}',
+                  style: pw.TextStyle(fontSize: 14),
+                ),
                 pw.Divider(),
                 pw.Container(
                   color: PdfColors.grey200,
@@ -501,19 +538,38 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   child: pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Total Weight: ${totalWeight.toStringAsFixed(2)} kg', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.Text('Total Count: $totalCount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        'Total Weight: ${totalWeight.toStringAsFixed(2)} kg',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                      pw.Text(
+                        'Total Count: $totalCount',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
                     ],
                   ),
                 ),
                 pw.SizedBox(height: 12),
-                pw.Text('Scale Measurements', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+                pw.Text(
+                  'Scale Measurements',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
               ],
             ),
           );
           widgets.add(
             pw.Table.fromTextArray(
-              headers: ['No', 'Weight (kg)', 'Date & Time', 'Type', 'Status', 'User'],
+              headers: [
+                'No',
+                'Weight (kg)',
+                'Date & Time',
+                'Type',
+                'Status',
+                'User',
+              ],
               data: List.generate(scaleData.length, (i) {
                 final item = scaleData[i];
                 return [
@@ -525,7 +581,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   item['user']?.toString() ?? '',
                 ];
               }),
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
               headerDecoration: pw.BoxDecoration(color: PdfColors.blue),
               cellAlignment: pw.Alignment.centerLeft,
               cellStyle: pw.TextStyle(fontSize: 10),
@@ -533,11 +592,12 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               border: pw.TableBorder.all(color: PdfColors.grey400),
             ),
           );
+          widgets.add(pw.SizedBox(height: 12));
           widgets.add(
-            pw.SizedBox(height: 12),
-          );
-          widgets.add(
-            pw.Text('Generated on ${_formatDateTime(now)}', style: pw.TextStyle(fontSize: 10)),
+            pw.Text(
+              'Generated on ${_formatDateTime(now)}',
+              style: pw.TextStyle(fontSize: 10),
+            ),
           );
           return widgets;
         },
@@ -1057,7 +1117,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                       Flexible(
                         child: Text(
                           title,
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -1129,7 +1192,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Padding(
@@ -1168,7 +1234,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                                         exportScaleDataToPDF(
                                           scaleData: scaleData,
                                           faktur: widget.data['faktur'] ?? '',
-                                          supplier: widget.data['supplier'] ?? '',
+                                          supplier:
+                                              widget.data['supplier'] ?? '',
                                           totalWeight: scaleData.fold<double>(
                                             0,
                                             (sum, item) =>
@@ -1207,7 +1274,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
