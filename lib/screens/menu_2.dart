@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_drawer.dart';
 import '../utils/auth.dart';
+import 'package:intl/intl.dart';
 
 class Menu2Page extends StatefulWidget {
   @override
@@ -18,6 +19,7 @@ class _Menu2PageState extends State<Menu2Page> {
   final supplierController = TextEditingController();
   final tanggalAwalController = TextEditingController();
   final tanggalAkhirController = TextEditingController();
+  final DateTime today = DateTime.now();
 
   List<Map<String, dynamic>> data = [];
   late List<Map<String, dynamic>> filteredData = [];
@@ -142,12 +144,15 @@ class _Menu2PageState extends State<Menu2Page> {
         print('Token null, keluar dari fetch');
         return;
       }
-      final tanggalAwal = tanggalAwalController.text.isNotEmpty
+      final DateTime today = DateTime.now();
+      final DateTime firstDayOfMonth = DateTime(today.year, today.month, 1);
+
+      final String tanggalAwal = tanggalAwalController.text.isNotEmpty
           ? tanggalAwalController.text
-          : '2025-09-01';
-      final tanggalAkhir = tanggalAkhirController.text.isNotEmpty
+          : DateFormat('yyyy-MM-dd').format(firstDayOfMonth);
+      final String tanggalAkhir = tanggalAkhirController.text.isNotEmpty
           ? tanggalAkhirController.text
-          : '2025-09-16';
+          : DateFormat('yyyy-MM-dd').format(today);
 
       final url =
           'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
