@@ -20,7 +20,7 @@ class BluetoothManagerWeb implements BluetoothManager {
   String _status = 'Idle';
   static const String _serviceUuid = 'cd5cac32-0548-437b-b273-e0bf0d372110';
   static const String _charUuid = 'bb0c63ff-6916-4c89-b62e-a2b090c78601';
-  static const String _ledUuID = 'b75501ff-4e00-45d1-bab1-09f4b5a6dddf';
+  // static const String _ledUuID = 'b75501ff-4e00-45d1-bab1-09f4b5a6dddf';
 
   @override
   Stream<String> get weightStream => _weightController.stream;
