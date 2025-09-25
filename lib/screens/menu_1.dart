@@ -265,7 +265,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -328,10 +328,11 @@ class _Menu1PageState extends State<Menu1Page> {
     }
 
     final uri = Uri.parse(
-      'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm',
+      'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm',
     );
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token'
+      ..headers['Content-Type'] = 'application/json'
       ..fields['jenis_rm'] = selectedJenisRm!
       ..fields['qty_po'] = qtyPo
       ..fields['supplier'] = selectedSupplier!
@@ -985,7 +986,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
               final response = await http.post(
                 Uri.parse(
-                  'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$fakturBaru',
+                  'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
                 ),
                 headers: {
                   'Authorization': 'Bearer $token',
