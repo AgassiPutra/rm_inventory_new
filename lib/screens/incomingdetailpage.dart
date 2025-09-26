@@ -213,7 +213,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm"
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm"
       "?Faktur=$faktur"
       "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
       "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
@@ -276,7 +276,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final uri = Uri.parse(
-        "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/invoice-sj-update?Faktur=$faktur",
+        "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?Faktur=$faktur",
       );
       final request = http.MultipartRequest('PUT', uri);
 
@@ -332,7 +332,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final token = prefs.getString('auth_token') ?? '';
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$faktur",
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$faktur",
     );
 
     try {
@@ -393,7 +393,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-losses?Faktur=$faktur",
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?Faktur=$faktur",
     );
 
     try {
@@ -1075,7 +1075,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
-      final url = Uri.parse("https://api-gts-rm.miegacoan.id/$imagePath");
+      final url = Uri.parse("https://api-gts-rm.scm-ppa.com/$imagePath");
 
       print("Fetching image: $url");
 
@@ -1494,7 +1494,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
               final response = await http.post(
                 Uri.parse(
-                  'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$fakturBaru',
+                  'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
                 ),
                 headers: {
                   'Authorization': 'Bearer $token',

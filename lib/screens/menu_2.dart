@@ -144,18 +144,23 @@ class _Menu2PageState extends State<Menu2Page> {
         print('Token null, keluar dari fetch');
         return;
       }
+
       final DateTime today = DateTime.now();
+      final DateFormat formatter = DateFormat('yyyy-MM-dd');
       final DateTime firstDayOfMonth = DateTime(today.year, today.month, 1);
+      final DateTime tomorrow = today.add(const Duration(days: 1));
 
       final String tanggalAwal = tanggalAwalController.text.isNotEmpty
           ? tanggalAwalController.text
-          : DateFormat('yyyy-MM-dd').format(firstDayOfMonth);
+          : formatter.format(firstDayOfMonth);
       final String tanggalAkhir = tanggalAkhirController.text.isNotEmpty
           ? tanggalAkhirController.text
-          : DateFormat('yyyy-MM-dd').format(today);
+          : formatter.format(tomorrow);
 
       final url =
-          'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+          'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+
+      print('Fetching URL: $url');
 
       final response = await http.get(
         Uri.parse(url),
@@ -173,6 +178,12 @@ class _Menu2PageState extends State<Menu2Page> {
           data = items
               .map<Map<String, dynamic>>((item) => item as Map<String, dynamic>)
               .toList();
+          if (data.isEmpty) {
+            errorMessage = 'Tidak ada data pengiriman RM pada periode ini.';
+          } else {
+            errorMessage = null;
+          }
+
           applyFilter();
         });
       } else {
