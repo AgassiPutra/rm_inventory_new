@@ -192,7 +192,7 @@ class _Menu1PageState extends State<Menu1Page> {
           debugPrint("📩 Data dari ESP32: '$weightData'");
           if (weightData == 'SAVE_SIGNAL') {
             if (mounted) {
-              _receiveWeightReading();
+              _saveCurrentWeight();
             }
             return;
           }
@@ -506,30 +506,16 @@ class _Menu1PageState extends State<Menu1Page> {
     }
   }
 
-  void _receiveWeightReading() {
+  Future<void> _saveCurrentWeight() async {
     if (isReceivingWeight) return;
+    setState(() => isReceivingWeight = true);
 
-    setState(() {
-      isReceivingWeight = true;
-    });
-    final currentWeight = esp32Weight != null
-        ? double.tryParse(esp32Weight!)
-        : null;
-
-    if (currentWeight == null) {
-      _showSnackBar(
-        'Timbangan belum terhubung atau data berat tidak valid.',
-        isError: true,
-      );
+    final parsedWeight = double.tryParse(esp32Weight ?? '');
+    if (parsedWeight == null || parsedWeight <= 0.0) {
+      _showSnackBar('Berat tidak valid atau nol.', isError: true);
       setState(() => isReceivingWeight = false);
       return;
     }
-    if (currentWeight <= 0.0) {
-      _showSnackBar('Berat harus lebih besar dari nol.', isError: true);
-      setState(() => isReceivingWeight = false);
-      return;
-    }
-
     if (selectedStatusPenerimaan == null || selectedTipeRM == null) {
       _showSnackBar(
         'Harap lengkapi Status Penerimaan dan Tipe RM.',
@@ -538,24 +524,89 @@ class _Menu1PageState extends State<Menu1Page> {
       setState(() => isReceivingWeight = false);
       return;
     }
-    final newReading = {
-      'weight': currentWeight,
-      'time': DateTime.now().toIso8601String(),
-      'status': selectedStatusPenerimaan!,
-      'tipeRM': selectedTipeRM!,
+    if (lastSubmittedFaktur == null) {
+      _showSnackBar(
+        'Faktur belum disubmit. Harap Submit form utama terlebih dahulu.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final token = await getToken();
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id') ?? 'guest';
+
+    if (token == null || token.isEmpty) {
+      _showSnackBar(
+        'Token tidak ditemukan. Silakan login ulang.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final apiEndpoint = 'gtsrm/api/timbangan?Faktur=$lastSubmittedFaktur';
+    final weightData = {
+      "weight": parsedWeight.toStringAsFixed(2),
+      "status": selectedStatusPenerimaan,
+      "type_rm": selectedTipeRM,
     };
 
-    setState(() {
-      receivedList.add(newReading);
-      receivedWeight = receivedList.fold<double>(0.0, (sum, item) {
-        final weight = double.tryParse(item['weight'] as String) ?? 0.0;
-        return sum + weight;
-      });
-      isReceivingWeight = false;
-    });
-    _showSnackBar(
-      'Berat ${currentWeight.toStringAsFixed(2)} kg berhasil di-receive. Total: ${(receivedWeight ?? 0.0).toStringAsFixed(2)} kg.',
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(weightData),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSnackBar(
+          'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',
+        );
+      } else {
+        throw Exception(
+          jsonDecode(response.body)['message'] ?? 'Gagal kirim data timbangan',
+        );
+      }
+    } catch (e) {
+      debugPrint("Error submit weight: $e. Menyimpan ke antrian.");
+
+      final hiveService = HiveService.instance;
+      final queueItem = UploadQueue(
+        userId: userId,
+        apiEndpoint: apiEndpoint,
+        requestBodyJson: jsonEncode(weightData),
+        fileContentsBase64: const [],
+        status: 'PENDING',
+        menuType: 'MENU1_TIMBANGAN',
+        isMultipart: false,
+        token: token,
+        createdAt: DateTime.now(),
+        method: 'POST',
+        fakturLocalId: lastSubmittedFaktur!,
+      );
+      await hiveService.addItemToQueue(queueItem);
+      _showSnackBar(
+        'Timbangan disimpan lokal. Akan disinkronkan.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          receivedList.add({
+            "weight": parsedWeight.toStringAsFixed(2),
+            "status": selectedStatusPenerimaan,
+            "type_rm": selectedTipeRM,
+            "time": DateTime.now().toString().substring(0, 19),
+          });
+          receivedWeight = (receivedWeight ?? 0.0) + parsedWeight;
+          isReceivingWeight = false;
+        });
+      }
+    }
   }
 
   void resetForm() {
@@ -1079,112 +1130,7 @@ class _Menu1PageState extends State<Menu1Page> {
                     selectedStatusPenerimaan == null ||
                     isReceivingWeight)
                 ? null
-                : () async {
-                    setState(() => isReceivingWeight = true);
-
-                    final parsedWeight = double.tryParse(esp32Weight ?? '');
-                    if (parsedWeight == null || parsedWeight <= 0.0) {
-                      _showSnackBar(
-                        'Berat tidak valid atau nol.',
-                        isError: true,
-                      );
-                      setState(() => isReceivingWeight = false);
-                      return;
-                    }
-
-                    final fakturId = await _getLastFaktur();
-                    if (lastSubmittedFaktur == null) {
-                      _showSnackBar(
-                        'Faktur belum disubmit. Harap Submit form utama terlebih dahulu.',
-                        isError: true,
-                      );
-                      setState(() => isReceivingWeight = false);
-                      return;
-                    }
-
-                    final token = await getToken();
-                    final prefs = await SharedPreferences.getInstance();
-                    final userId = prefs.getString('user_id') ?? 'guest';
-
-                    if (token == null || token.isEmpty) {
-                      _showSnackBar(
-                        'Token tidak ditemukan. Silakan login ulang.',
-                        isError: true,
-                      );
-                      setState(() => isReceivingWeight = false);
-                      return;
-                    }
-                    final apiEndpoint = 'gtsrm/api/timbangan?Faktur=$fakturId';
-                    final weightData = {
-                      "weight": parsedWeight.toStringAsFixed(2),
-                      "status": selectedStatusPenerimaan,
-                      "type_rm": selectedTipeRM,
-                    };
-
-                    try {
-                      final response = await http.post(
-                        Uri.parse(
-                          'https://api-gts-rm.scm-ppa.com/$apiEndpoint',
-                        ),
-                        headers: {
-                          'Authorization': 'Bearer $token',
-                          'Content-Type': 'application/json',
-                        },
-                        body: jsonEncode(weightData),
-                      );
-                      if (response.statusCode == 200 ||
-                          response.statusCode == 201) {
-                        setState(() {
-                          receivedList.add({
-                            "weight": parsedWeight.toStringAsFixed(2),
-                            "status": selectedStatusPenerimaan,
-                            "type_rm": selectedTipeRM,
-                            "time": DateTime.now().toString().substring(0, 19),
-                          });
-                          receivedWeight =
-                              (receivedWeight ?? 0.0) + parsedWeight;
-                        });
-
-                        _showSnackBar(
-                          'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',
-                        );
-                      } else {
-                        throw Exception(
-                          jsonDecode(response.body)['message'] ??
-                              'Gagal kirim data timbangan',
-                        );
-                      }
-                    } catch (e) {
-                      debugPrint(
-                        "Error submit weight: $e. Menyimpan ke antrian.",
-                      );
-
-                      final hiveService = HiveService.instance;
-                      final queueItem = UploadQueue(
-                        userId: userId,
-                        apiEndpoint: apiEndpoint,
-                        requestBodyJson: jsonEncode(weightData),
-                        fileContentsBase64: const [],
-                        status: 'PENDING',
-                        menuType: 'MENU1_TIMBANGAN',
-                        isMultipart: false,
-                        token: token,
-                        createdAt: DateTime.now(),
-                        method: 'POST',
-                        fakturLocalId: fakturId!,
-                      );
-                      await hiveService.addItemToQueue(queueItem);
-
-                      _showSnackBar(
-                        'Timbangan disimpan lokal. Akan disinkronkan.',
-                        isError: true,
-                      );
-                    } finally {
-                      if (mounted) {
-                        setState(() => isReceivingWeight = false);
-                      }
-                    }
-                  },
+                : _saveCurrentWeight,
             icon: isReceivingWeight
                 ? const SizedBox(
                     width: 20,

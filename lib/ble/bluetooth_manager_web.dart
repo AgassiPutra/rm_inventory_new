@@ -101,15 +101,13 @@ class BluetoothManagerWeb implements BluetoothManager {
       await _valueSub?.cancel();
       _valueSub = ch.value.listen(
         (ByteData data) {
-          final rawData = _decodeText(data).trim();
-
-          if (rawData.isNotEmpty) {
-            final isParsable = double.tryParse(rawData) != null;
-
-            if (isParsable) {
-              _weightController.add(rawData);
-            } else {
-              _weightController.add('SAVE_SIGNAL');
+          if (data.lengthInBytes == 1 && data.getUint8(0) == 1) {
+            print("Perintah SIMPAN (1 byte) diterima dari ESP32");
+            _weightController.add('SAVE_SIGNAL');
+          } else {
+            final weightString = _decodeText(data).trim();
+            if (weightString.isNotEmpty) {
+              _weightController.add(weightString);
             }
           }
         },
