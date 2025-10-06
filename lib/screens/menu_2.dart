@@ -158,7 +158,7 @@ class _Menu2PageState extends State<Menu2Page> {
           : formatter.format(tomorrow);
 
       final url =
-          'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+          'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
 
       print('Fetching URL: $url');
 
