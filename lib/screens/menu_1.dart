@@ -13,6 +13,11 @@ import 'package:rm_inventory_new/ble/bluetooth_manager_web.dart' as web;
 import 'dart:html' as html;
 import '../ble/permission_handler.dart';
 import '../models/app_bluetooth_device.dart';
+import '../db/hive_service.dart';
+import '../models/upload_queue.dart';
+import '../utils/file_manager.dart';
+import 'dart:io';
+import 'package:uuid/uuid.dart';
 
 class Menu1Page extends StatefulWidget {
   @override
@@ -20,6 +25,9 @@ class Menu1Page extends StatefulWidget {
 }
 
 class _Menu1PageState extends State<Menu1Page> {
+  final Auth authService = Auth();
+  final Uuid _uuid = Uuid();
+
   bool isLoadingSuppliers = false;
   late String currentTime;
   late TextEditingController currentTimeController;
@@ -71,6 +79,7 @@ class _Menu1PageState extends State<Menu1Page> {
   String? selectedTipeRM;
   String? lastSubmittedFaktur;
   double? receivedWeight;
+  bool isReceivingWeight = false;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -115,6 +124,16 @@ class _Menu1PageState extends State<Menu1Page> {
     'ICE': ['Es Batu', 'Ice Cube'],
     'UDANG': ['Udang Fresh', 'Udang Beku'],
   };
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   Future<void> _pickImage(Function(XFile?) onPicked) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
@@ -171,6 +190,12 @@ class _Menu1PageState extends State<Menu1Page> {
       _notificationSubscription = bluetoothManager.weightStream.listen(
         (weightData) {
           debugPrint("📩 Data dari ESP32: '$weightData'");
+          if (weightData == 'SAVE_SIGNAL') {
+            if (mounted) {
+              _receiveWeightReading();
+            }
+            return;
+          }
           try {
             final weight = double.parse(weightData);
             if (mounted) {
@@ -265,7 +290,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -309,7 +334,10 @@ class _Menu1PageState extends State<Menu1Page> {
   }
 
   Future<void> submitData() async {
-    final token = await getToken();
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final userId = prefs.getString('user_id') ?? 'guest';
+
     if (token == null || token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -326,39 +354,30 @@ class _Menu1PageState extends State<Menu1Page> {
       );
       return;
     }
+    final apiEndpointFull =
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+    const apiEndpoint = 'gtsrm/api/incoming-rm';
 
-    final uri = Uri.parse(
-      'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm',
-    );
+    final Map<String, dynamic> requestFields = {
+      'jenis_rm': selectedJenisRm!,
+      'qty_po': qtyPo,
+      'supplier': selectedSupplier!,
+      'produsen': produsenController.text,
+    };
+
+    final uri = Uri.parse(apiEndpointFull);
     final request = http.MultipartRequest('POST', uri)
-      ..headers['Authorization'] = 'Bearer $token'
-      ..fields['jenis_rm'] = selectedJenisRm!
-      ..fields['qty_po'] = qtyPo
-      ..fields['supplier'] = selectedSupplier!
-      ..fields['produsen'] = produsen;
+      ..headers['Authorization'] = 'Bearer $token';
 
-    if (kIsWeb) {
+    final List<String> filePaths = [];
+    final List<String> fileContentsBase64 = [];
+    requestFields.forEach((key, value) {
+      request.fields[key] = value.toString();
+    });
+    if (!kIsWeb) {
       if (invoiceFile != null) {
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'invoice_supplier',
-            await invoiceFile!.readAsBytes(),
-            filename: invoiceFile!.name,
-          ),
-        );
-      }
-
-      if (suratJalanFile != null) {
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'surat_jalan',
-            await suratJalanFile!.readAsBytes(),
-            filename: suratJalanFile!.name,
-          ),
-        );
-      }
-    } else {
-      if (invoiceFile != null) {
+        final savedPath = await FileManager.saveFilePermanently(invoiceFile!);
+        filePaths.add(savedPath);
         request.files.add(
           await http.MultipartFile.fromPath(
             'invoice_supplier',
@@ -367,13 +386,39 @@ class _Menu1PageState extends State<Menu1Page> {
           ),
         );
       }
-
       if (suratJalanFile != null) {
+        final savedPath = await FileManager.saveFilePermanently(
+          suratJalanFile!,
+        );
+        filePaths.add(savedPath);
         request.files.add(
           await http.MultipartFile.fromPath(
             'surat_jalan',
             suratJalanFile!.path,
             filename: suratJalanFile!.path.split('/').last,
+          ),
+        );
+      }
+    } else {
+      if (invoiceFile != null) {
+        final bytes = await invoiceFile!.readAsBytes();
+        fileContentsBase64.add(base64Encode(bytes));
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'invoice_supplier',
+            bytes,
+            filename: invoiceFile!.name,
+          ),
+        );
+      }
+      if (suratJalanFile != null) {
+        final bytes = await suratJalanFile!.readAsBytes();
+        fileContentsBase64.add(base64Encode(bytes));
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'surat_jalan',
+            bytes,
+            filename: suratJalanFile!.name,
           ),
         );
       }
@@ -387,12 +432,19 @@ class _Menu1PageState extends State<Menu1Page> {
         final jsonRes = jsonDecode(resBody);
         debugPrint("Raw Response Incoming-RM: $jsonRes");
 
-        final fakturBaru = jsonRes['data']?['faktur'];
-        lastSubmittedFaktur = fakturBaru;
+        final fakturServer = jsonRes['data']?['faktur'];
+        setState(() {
+          lastSubmittedFaktur = fakturServer;
+        });
+        if (!kIsWeb) {
+          for (var path in filePaths) {
+            await FileManager.deleteFile(path);
+          }
+        }
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Data berhasil dikirim')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data berhasil dikirim (Online)')),
+        );
       } else {
         String errorMsg = 'Gagal kirim';
         try {
@@ -403,16 +455,107 @@ class _Menu1PageState extends State<Menu1Page> {
         } catch (_) {
           errorMsg = resBody;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        throw Exception(errorMsg);
       }
     } catch (e) {
-      debugPrint("Error: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      debugPrint("Error submit main form: $e. Menyimpan ke antrian.");
+      String fakturIdUntukAntrian = lastSubmittedFaktur ?? 'UUID-${_uuid.v4()}';
+      if (lastSubmittedFaktur == null) {
+        setState(() {
+          lastSubmittedFaktur = fakturIdUntukAntrian;
+        });
+      }
+
+      try {
+        final hiveService = HiveService.instance;
+        final List<String> finalFilePayload = kIsWeb
+            ? fileContentsBase64
+            : filePaths;
+
+        final queueItem = UploadQueue(
+          userId: userId,
+          apiEndpoint: apiEndpoint,
+          requestBodyJson: jsonEncode(requestFields),
+          fileContentsBase64: finalFilePayload,
+          status: 'PENDING',
+          menuType: 'MENU1_FORM_UTAMA',
+          isMultipart: true,
+          token: token,
+          createdAt: DateTime.now(),
+          method: 'POST',
+          fakturLocalId: fakturIdUntukAntrian,
+        );
+
+        await hiveService.addItemToQueue(queueItem);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal kirim. Data disimpan lokal (Offline).'),
+          ),
+        );
+      } catch (queueError) {
+        debugPrint("FATAL: Gagal menyimpan ke antrian Hive: $queueError");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'FATAL ERROR: Gagal menyimpan data offline. Error: ${queueError.toString()}',
+            ),
+          ),
+        );
+      }
     }
+  }
+
+  void _receiveWeightReading() {
+    if (isReceivingWeight) return;
+
+    setState(() {
+      isReceivingWeight = true;
+    });
+    final currentWeight = esp32Weight != null
+        ? double.tryParse(esp32Weight!)
+        : null;
+
+    if (currentWeight == null) {
+      _showSnackBar(
+        'Timbangan belum terhubung atau data berat tidak valid.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+    if (currentWeight <= 0.0) {
+      _showSnackBar('Berat harus lebih besar dari nol.', isError: true);
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    if (selectedStatusPenerimaan == null || selectedTipeRM == null) {
+      _showSnackBar(
+        'Harap lengkapi Status Penerimaan dan Tipe RM.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+    final newReading = {
+      'weight': currentWeight,
+      'time': DateTime.now().toIso8601String(),
+      'status': selectedStatusPenerimaan!,
+      'tipeRM': selectedTipeRM!,
+    };
+
+    setState(() {
+      receivedList.add(newReading);
+      receivedWeight = receivedList.fold<double>(0.0, (sum, item) {
+        final weight = double.tryParse(item['weight'] as String) ?? 0.0;
+        return sum + weight;
+      });
+      isReceivingWeight = false;
+    });
+    _showSnackBar(
+      'Berat ${currentWeight.toStringAsFixed(2)} kg berhasil di-receive. Total: ${(receivedWeight ?? 0.0).toStringAsFixed(2)} kg.',
+    );
   }
 
   void resetForm() {
@@ -912,13 +1055,11 @@ class _Menu1PageState extends State<Menu1Page> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  receivedWeight != null
-                      ? '${receivedWeight!.toStringAsFixed(2)} kg'
-                      : '- kg',
+                  '${(receivedWeight ?? 0.0).toStringAsFixed(2)} kg',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
-                    color: (receivedWeight ?? 0) < 0
+                    color: (receivedWeight ?? 0.0) < 0
                         ? Colors.red
                         : Colors.green[900],
                   ),
@@ -932,100 +1073,133 @@ class _Menu1PageState extends State<Menu1Page> {
           ),
           SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () async {
-              if (esp32Weight == null ||
-                  selectedTipeRM == null ||
-                  selectedStatusPenerimaan == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Lengkapi data timbangan terlebih dahulu'),
-                  ),
-                );
-                return;
-              }
+            onPressed:
+                (weight == null ||
+                    selectedTipeRM == null ||
+                    selectedStatusPenerimaan == null ||
+                    isReceivingWeight)
+                ? null
+                : () async {
+                    setState(() => isReceivingWeight = true);
 
-              final parsedWeight = double.tryParse(esp32Weight ?? '');
-              if (parsedWeight == null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Berat tidak valid')));
-                return;
-              }
+                    final parsedWeight = double.tryParse(esp32Weight ?? '');
+                    if (parsedWeight == null || parsedWeight <= 0.0) {
+                      _showSnackBar(
+                        'Berat tidak valid atau nol.',
+                        isError: true,
+                      );
+                      setState(() => isReceivingWeight = false);
+                      return;
+                    }
 
-              setState(() {
-                receivedWeight = parsedWeight;
-              });
+                    final fakturId = await _getLastFaktur();
+                    if (lastSubmittedFaktur == null) {
+                      _showSnackBar(
+                        'Faktur belum disubmit. Harap Submit form utama terlebih dahulu.',
+                        isError: true,
+                      );
+                      setState(() => isReceivingWeight = false);
+                      return;
+                    }
 
-              final token = await getToken();
-              if (token == null || token.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Token tidak ditemukan')),
-                );
-                return;
-              }
+                    final token = await getToken();
+                    final prefs = await SharedPreferences.getInstance();
+                    final userId = prefs.getString('user_id') ?? 'guest';
 
-              if (selectedJenisRm == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Jenis RM belum dipilih')),
-                );
-                return;
-              }
+                    if (token == null || token.isEmpty) {
+                      _showSnackBar(
+                        'Token tidak ditemukan. Silakan login ulang.',
+                        isError: true,
+                      );
+                      setState(() => isReceivingWeight = false);
+                      return;
+                    }
+                    final apiEndpoint = 'gtsrm/api/timbangan?Faktur=$fakturId';
+                    final weightData = {
+                      "weight": parsedWeight.toStringAsFixed(2),
+                      "status": selectedStatusPenerimaan,
+                      "type_rm": selectedTipeRM,
+                    };
 
-              final fakturBaru = await _getLastFaktur();
-              if (fakturBaru == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Faktur tidak ditemukan. Klik Submit terlebih dahulu.',
+                    try {
+                      final response = await http.post(
+                        Uri.parse(
+                          'https://api-gts-rm.scm-ppa.com/$apiEndpoint',
+                        ),
+                        headers: {
+                          'Authorization': 'Bearer $token',
+                          'Content-Type': 'application/json',
+                        },
+                        body: jsonEncode(weightData),
+                      );
+                      if (response.statusCode == 200 ||
+                          response.statusCode == 201) {
+                        setState(() {
+                          receivedList.add({
+                            "weight": parsedWeight.toStringAsFixed(2),
+                            "status": selectedStatusPenerimaan,
+                            "type_rm": selectedTipeRM,
+                            "time": DateTime.now().toString().substring(0, 19),
+                          });
+                          receivedWeight =
+                              (receivedWeight ?? 0.0) + parsedWeight;
+                        });
+
+                        _showSnackBar(
+                          'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',
+                        );
+                      } else {
+                        throw Exception(
+                          jsonDecode(response.body)['message'] ??
+                              'Gagal kirim data timbangan',
+                        );
+                      }
+                    } catch (e) {
+                      debugPrint(
+                        "Error submit weight: $e. Menyimpan ke antrian.",
+                      );
+
+                      final hiveService = HiveService.instance;
+                      final queueItem = UploadQueue(
+                        userId: userId,
+                        apiEndpoint: apiEndpoint,
+                        requestBodyJson: jsonEncode(weightData),
+                        fileContentsBase64: const [],
+                        status: 'PENDING',
+                        menuType: 'MENU1_TIMBANGAN',
+                        isMultipart: false,
+                        token: token,
+                        createdAt: DateTime.now(),
+                        method: 'POST',
+                        fakturLocalId: fakturId!,
+                      );
+                      await hiveService.addItemToQueue(queueItem);
+
+                      _showSnackBar(
+                        'Timbangan disimpan lokal. Akan disinkronkan.',
+                        isError: true,
+                      );
+                    } finally {
+                      if (mounted) {
+                        setState(() => isReceivingWeight = false);
+                      }
+                    }
+                  },
+            icon: isReceivingWeight
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
                     ),
-                  ),
-                );
-                return;
-              }
-
-              final response = await http.post(
-                Uri.parse(
-                  'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$fakturBaru',
-                ),
-                headers: {
-                  'Authorization': 'Bearer $token',
-                  'Content-Type': 'application/json',
-                },
-                body: jsonEncode({
-                  "weight": parsedWeight.toStringAsFixed(2),
-                  "status": selectedStatusPenerimaan,
-                  "type_rm": selectedTipeRM,
-                }),
-              );
-
-              if (response.statusCode == 200 || response.statusCode == 201) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Data timbangan berhasil dikirim')),
-                );
-
-                setState(() {
-                  receivedList.add({
-                    "weight": parsedWeight.toStringAsFixed(2),
-                    "status": selectedStatusPenerimaan,
-                    "type_rm": selectedTipeRM,
-                    "time": DateTime.now().toString(),
-                  });
-                });
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Gagal kirim data timbangan: ${response.body}',
-                    ),
-                  ),
-                );
-              }
-            },
-
-            icon: Icon(Icons.download),
-            label: Text('Receive'),
+                  )
+                : const Icon(Icons.download),
+            label: Text(isReceivingWeight ? 'Receiving...' : 'Receive Weight'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: isReceivingWeight
+                  ? Colors.blueGrey
+                  : Colors.green,
               foregroundColor: Colors.white,
               shape: StadiumBorder(),
               minimumSize: Size(double.infinity, 48),
@@ -1052,10 +1226,10 @@ class _Menu1PageState extends State<Menu1Page> {
                   return DataRow(
                     cells: [
                       DataCell(Text("${index + 1}")),
-                      DataCell(Text(row["weight"])),
+                      DataCell(Text(row["weight"] as String)),
                       DataCell(Text(row["status"] ?? "-")),
                       DataCell(Text(row["type_rm"] ?? "-")),
-                      DataCell(Text(row["time"])),
+                      DataCell(Text(row["time"].toString().substring(11, 19))),
                     ],
                   );
                 }),

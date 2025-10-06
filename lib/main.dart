@@ -1,5 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'db/hive_service.dart';
+import 'services/sync_service.dart';
 import 'screens/login.dart';
 import 'screens/dashboard.dart';
 import 'screens/menu_1.dart';
@@ -19,8 +22,17 @@ class MyHttpOverrides extends HttpOverrides {
   }
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = MyHttpOverrides();
+  try {
+    await HiveService.initialize();
+    debugPrint('Hive Database berhasil diinisialisasi.');
+  } catch (e) {
+    debugPrint('ERROR: Gagal inisialisasi Hive: $e');
+  }
+  SyncService.instance.startListening();
+
   runApp(MyApp());
 }
 

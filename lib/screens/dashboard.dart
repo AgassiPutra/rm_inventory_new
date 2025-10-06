@@ -57,12 +57,18 @@ class _DashboardPageState extends State<DashboardPage> {
       );
       return;
     }
+    if (startDate == null || endDate == null) {
+      setState(() => isLoading = false);
+      return;
+    }
+
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
     final String tanggalAwal = formatter.format(startDate!);
-    final String tanggalAkhir = formatter.format(endDate!);
+    final DateTime nextDay = endDate!.add(const Duration(days: 1));
+    final String tanggalAkhir = formatter.format(nextDay);
 
     final url =
-        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
 
     try {
       final response = await http.get(

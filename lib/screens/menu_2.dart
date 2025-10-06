@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_drawer.dart';
 import '../utils/auth.dart';
+import 'package:intl/intl.dart';
 
 class Menu2Page extends StatefulWidget {
   @override
@@ -18,6 +19,7 @@ class _Menu2PageState extends State<Menu2Page> {
   final supplierController = TextEditingController();
   final tanggalAwalController = TextEditingController();
   final tanggalAkhirController = TextEditingController();
+  final DateTime today = DateTime.now();
 
   List<Map<String, dynamic>> data = [];
   late List<Map<String, dynamic>> filteredData = [];
@@ -142,15 +144,23 @@ class _Menu2PageState extends State<Menu2Page> {
         print('Token null, keluar dari fetch');
         return;
       }
-      final tanggalAwal = tanggalAwalController.text.isNotEmpty
+
+      final DateTime today = DateTime.now();
+      final DateFormat formatter = DateFormat('yyyy-MM-dd');
+      final DateTime firstDayOfMonth = DateTime(today.year, today.month, 1);
+      final DateTime tomorrow = today.add(const Duration(days: 1));
+
+      final String tanggalAwal = tanggalAwalController.text.isNotEmpty
           ? tanggalAwalController.text
-          : '2025-09-01';
-      final tanggalAkhir = tanggalAkhirController.text.isNotEmpty
+          : formatter.format(firstDayOfMonth);
+      final String tanggalAkhir = tanggalAkhirController.text.isNotEmpty
           ? tanggalAkhirController.text
-          : '2025-09-16';
+          : formatter.format(tomorrow);
 
       final url =
-          'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+          'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+
+      print('Fetching URL: $url');
 
       final response = await http.get(
         Uri.parse(url),
@@ -168,6 +178,12 @@ class _Menu2PageState extends State<Menu2Page> {
           data = items
               .map<Map<String, dynamic>>((item) => item as Map<String, dynamic>)
               .toList();
+          if (data.isEmpty) {
+            errorMessage = 'Tidak ada data pengiriman RM pada periode ini.';
+          } else {
+            errorMessage = null;
+          }
+
           applyFilter();
         });
       } else {
