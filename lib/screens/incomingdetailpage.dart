@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:rm_inventory_new/db/hive_service.dart';
+import 'package:rm_inventory_new/models/upload_queue.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:typed_data';
 import 'dart:html' as html;
@@ -59,6 +61,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   List<Map<String, dynamic>> receivedList = [];
   String? lastSubmittedFaktur;
   double? receivedWeight;
+  String? _latestWeight;
+  bool isReceivingWeight = false;
 
   String? selectedStatusPenerimaan;
   String? selectedTipeRM;
@@ -124,12 +128,31 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
       await _notificationSubscription?.cancel();
       _notificationSubscription = null;
-
       _notificationSubscription = bluetoothManager.weightStream.listen(
         (weightData) {
           debugPrint("📩 Data dari ESP32: '$weightData'");
-          try {
-            final weight = double.parse(weightData);
+          if (weightData.startsWith('SAVE_SIGNAL')) {
+            final parts = weightData.split(':');
+            if (parts.length == 2 && parts[1].isNotEmpty) {
+              final parsedWeight = double.tryParse(parts[1]);
+              if (parsedWeight != null && parsedWeight > 0) {
+                if (mounted) {
+                  _saveWeightDirectly(parsedWeight);
+                }
+                return;
+              }
+            }
+            if (mounted && esp32Weight != null) {
+              final parsedWeight = double.tryParse(esp32Weight!);
+              if (parsedWeight != null) {
+                _saveWeightDirectly(parsedWeight);
+              }
+            }
+            return;
+          }
+          final cleanData = weightData.trim();
+          final weight = double.tryParse(cleanData);
+          if (weight != null) {
             if (mounted) {
               setState(() {
                 esp32Weight = weight.toStringAsFixed(2);
@@ -137,18 +160,19 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                     "Terhubung ke ${device.name} | Berat: ${esp32Weight} kg";
               });
             }
-          } catch (e) {
-            debugPrint("❌ Gagal parsing data: '$weightData', error: $e");
+            _latestWeight = weight.toStringAsFixed(2);
+          } else {
+            debugPrint("Gagal parsing: '$weightData'");
             if (mounted) {
               setState(() {
                 esp32Weight = null;
-                bluetoothStatus = "Data berat tidak valid dari ${device.name}";
+                bluetoothStatus = "Data berat tidak valid";
               });
             }
           }
         },
         onError: (error) {
-          debugPrint("❌ Error di weightStream: $error");
+          debugPrint("Error di weightStream: $error");
           if (mounted) {
             setState(() {
               bluetoothStatus = "Error menerima data: $error";
@@ -156,7 +180,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           }
         },
         onDone: () {
-          debugPrint("📴 Stream berat ditutup, kemungkinan perangkat terputus");
+          debugPrint("Stream berat ditutup, kemungkinan perangkat terputus");
           if (mounted) {
             setState(() {
               connectedDevice = null;
@@ -204,6 +228,212 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
   }
 
+  Future<void> _saveWeightDirectly(double weight) async {
+    if (isReceivingWeight) return;
+    setState(() => isReceivingWeight = true);
+
+    if (selectedStatusPenerimaan == null || selectedTipeRM == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lengkapi Status & Tipe RM')));
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final token = await getToken();
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Token tidak ditemukan')));
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final fakturBaru = widget.data['faktur'];
+    if (fakturBaru == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Faktur tidak ditemukan')));
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final weightData = {
+      "weight": weight.toStringAsFixed(2),
+      "status": selectedStatusPenerimaan,
+      "type_rm": selectedTipeRM,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+          'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(weightData),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Data timbangan berhasil dikirim')),
+        );
+      } else {
+        throw Exception(jsonDecode(response.body)['message'] ?? 'Gagal kirim');
+      }
+    } catch (e) {
+      debugPrint("Error submit weight: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal kirim: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          receivedList.add({
+            "weight": weight.toStringAsFixed(2),
+            "status": selectedStatusPenerimaan,
+            "type_rm": selectedTipeRM,
+            "time": DateTime.now().toString(),
+          });
+          receivedWeight = (receivedWeight ?? 0.0) + weight;
+          isReceivingWeight = false;
+        });
+
+        try {
+          await bluetoothManager.turnOnLed();
+          Future.delayed(Duration(seconds: 1), () {
+            bluetoothManager.turnOffLed();
+          });
+        } catch (e) {
+          debugPrint("Gagal kontrol LED: $e");
+        }
+      }
+    }
+  }
+
+  Future<void> _saveCurrentWeight() async {
+    if (isReceivingWeight) return;
+    setState(() => isReceivingWeight = true);
+
+    final parsedWeight = double.tryParse(esp32Weight ?? '');
+    if (parsedWeight == null || parsedWeight <= 0.0) {
+      _showSnackBar('Berat tidak valid atau nol.', isError: true);
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+    if (selectedStatusPenerimaan == null || selectedTipeRM == null) {
+      _showSnackBar(
+        'Harap lengkapi Status Penerimaan dan Tipe RM.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+    final fakturBaru = widget.data['faktur'];
+    if (fakturBaru == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Faktur tidak ditemukan')));
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final token = await getToken();
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id') ?? 'guest';
+
+    if (token == null || token.isEmpty) {
+      _showSnackBar(
+        'Token tidak ditemukan. Silakan login ulang.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final apiEndpoint = 'gtsrm/api/timbangan?Faktur=$fakturBaru';
+    final weightData = {
+      "weight": parsedWeight.toStringAsFixed(2),
+      "status": selectedStatusPenerimaan,
+      "type_rm": selectedTipeRM,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(weightData),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSnackBar(
+          'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',
+        );
+      } else {
+        throw Exception(
+          jsonDecode(response.body)['message'] ?? 'Gagal kirim data timbangan',
+        );
+      }
+    } catch (e) {
+      debugPrint("Error submit weight: $e. Menyimpan ke antrian.");
+
+      final hiveService = HiveService.instance;
+      final queueItem = UploadQueue(
+        userId: userId,
+        apiEndpoint: apiEndpoint,
+        requestBodyJson: jsonEncode(weightData),
+        fileContentsBase64: const [],
+        status: 'PENDING',
+        menuType: 'MENU1_TIMBANGAN',
+        isMultipart: false,
+        token: token,
+        createdAt: DateTime.now(),
+        method: 'POST',
+        fakturLocalId: lastSubmittedFaktur!,
+      );
+      await hiveService.addItemToQueue(queueItem);
+      _showSnackBar(
+        'Timbangan disimpan lokal. Akan disinkronkan.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          receivedList.add({
+            "weight": parsedWeight.toStringAsFixed(2),
+            "status": selectedStatusPenerimaan,
+            "type_rm": selectedTipeRM,
+            "time": DateTime.now().toString().substring(0, 19),
+          });
+          receivedWeight = (receivedWeight ?? 0.0) + parsedWeight;
+          isReceivingWeight = false;
+        });
+        try {
+          await bluetoothManager.turnOnLed();
+          Future.delayed(Duration(seconds: 1), () {
+            bluetoothManager.turnOffLed();
+          });
+        } catch (e) {
+          debugPrint("Gagal kontrol LED: $e");
+        }
+      }
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> fetchIncomingDetail(String faktur) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
@@ -213,7 +443,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm"
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm"
       "?Faktur=$faktur"
       "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
       "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
@@ -227,9 +457,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           "Content-Type": "application/json",
         },
       );
-
-      // print(">>> STATUS: ${response.statusCode}");
-      // print(">>> BODY: ${response.body}");
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -276,7 +503,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final uri = Uri.parse(
-        "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/invoice-sj-update?Faktur=$faktur",
+        "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?Faktur=$faktur",
       );
       final request = http.MultipartRequest('PUT', uri);
 
@@ -332,7 +559,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final token = prefs.getString('auth_token') ?? '';
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$faktur",
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$faktur",
     );
 
     try {
@@ -393,7 +620,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-losses?Faktur=$faktur",
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?Faktur=$faktur",
     );
 
     try {
@@ -920,9 +1147,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                                   SizedBox(height: 24),
                                 ],
                                 Center(
-                                  child:
-                                      connectedDevice != null &&
-                                          esp32Weight != null
+                                  child: connectedDevice != null
                                       ? _buildConnectedScaleUI()
                                       : _buildConnectionUI(),
                                 ),
@@ -1075,7 +1300,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
-      final url = Uri.parse("https://api-gts-rm.miegacoan.id/$imagePath");
+      final url = Uri.parse("https://api-gts-rm.scm-ppa.com/$imagePath");
 
       print("Fetching image: $url");
 
@@ -1396,7 +1621,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           ),
           SizedBox(height: 8),
           Text(
-            weight != null ? '${weight.toStringAsFixed(2)} kg' : '- kg',
+            weight != null ? '${weight.toStringAsFixed(2)} kg' : '0 kg',
             style: TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.bold,
@@ -1421,13 +1646,11 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  receivedWeight != null
-                      ? '${receivedWeight!.toStringAsFixed(2)} kg'
-                      : '- kg',
+                  '${(receivedWeight ?? 0.0).toStringAsFixed(2)} kg',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
-                    color: (receivedWeight ?? 0) < 0
+                    color: (receivedWeight ?? 0.0) < 0
                         ? Colors.red
                         : Colors.green[900],
                   ),
@@ -1441,141 +1664,85 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           ),
           SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () async {
-              if (esp32Weight == null ||
-                  selectedTipeRM == null ||
-                  selectedStatusPenerimaan == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Lengkapi data timbangan terlebih dahulu'),
-                  ),
-                );
-                return;
-              }
-
-              final parsedWeight = double.tryParse(esp32Weight ?? '');
-              if (parsedWeight == null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Berat tidak valid')));
-                return;
-              }
-
-              setState(() {
-                receivedWeight = parsedWeight;
-              });
-
-              final token = await getToken();
-              if (token == null || token.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Token tidak ditemukan')),
-                );
-                return;
-              }
-
-              if (selectedJenisRm == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Jenis RM belum dipilih')),
-                );
-                return;
-              }
-
-              final fakturBaru = widget.data['faktur'];
-              if (fakturBaru == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Faktur tidak ditemukan. Klik Submit terlebih dahulu.',
+            onPressed:
+                (weight == null ||
+                    selectedTipeRM == null ||
+                    selectedStatusPenerimaan == null ||
+                    isReceivingWeight)
+                ? null
+                : _saveCurrentWeight,
+            icon: isReceivingWeight
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
                     ),
-                  ),
-                );
-                return;
-              }
-
-              final response = await http.post(
-                Uri.parse(
-                  'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?Faktur=$fakturBaru',
-                ),
-                headers: {
-                  'Authorization': 'Bearer $token',
-                  'Content-Type': 'application/json',
-                },
-                body: jsonEncode({
-                  "weight": parsedWeight.toStringAsFixed(2),
-                  "status": selectedStatusPenerimaan,
-                  "type_rm": selectedTipeRM,
-                }),
-              );
-
-              if (response.statusCode == 200 || response.statusCode == 201) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Data timbangan berhasil dikirim')),
-                );
-
-                setState(() {
-                  receivedList.add({
-                    "weight": parsedWeight.toStringAsFixed(2),
-                    "status": selectedStatusPenerimaan,
-                    "type_rm": selectedTipeRM,
-                    "time": DateTime.now().toString(),
-                  });
-                });
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Gagal kirim data timbangan: ${response.body}',
-                    ),
-                  ),
-                );
-              }
-            },
-
-            icon: Icon(Icons.download),
-            label: Text('Receive'),
+                  )
+                : const Icon(Icons.download),
+            label: Text(isReceivingWeight ? 'Receiving...' : 'Receive Weight'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: isReceivingWeight
+                  ? Colors.blueGrey
+                  : Colors.green,
               foregroundColor: Colors.white,
               shape: StadiumBorder(),
               minimumSize: Size(double.infinity, 48),
             ),
           ),
+          // if (kDebugMode)
+          //   Padding(
+          //     padding: EdgeInsets.only(top: 12),
+          //     child: Wrap(
+          //       spacing: 8,
+          //       children: [
+          //         ElevatedButton(
+          //           onPressed: () => bluetoothManager.simulateWeight("0.00"),
+          //           child: Text("Simulasi 0.00"),
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor: Colors.grey,
+          //           ),
+          //         ),
+          //         ElevatedButton(
+          //           onPressed: () => bluetoothManager.simulateWeight("12.34"),
+          //           child: Text("Simulasi 12.34"),
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor: Colors.grey,
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
           if (receivedList.isNotEmpty) ...[
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 20),
+            const Text(
               "Riwayat Penerimaan",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            DataTable(
-              columns: const [
-                DataColumn(label: Text("No")),
-                DataColumn(label: Text("Berat (kg)")),
-                DataColumn(label: Text("Status")),
-                DataColumn(label: Text("Tipe RM")),
-                DataColumn(label: Text("Waktu")),
-              ],
-              rows: List.generate(receivedList.length, (index) {
-                final row = receivedList[index];
-                return DataRow(
-                  cells: [
-                    DataCell(Text("${index + 1}")),
-                    DataCell(Text(row["weight"].toString())),
-                    DataCell(
-                      Text(
-                        row["status"] != null ? row["status"].toString() : "-",
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        row["type_rm"] != null
-                            ? row["type_rm"].toString()
-                            : "-",
-                      ),
-                    ),
-                    DataCell(Text(row["time"].toString())),
-                  ],
-                );
-              }),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text("No")),
+                  DataColumn(label: Text("Berat (kg)")),
+                  DataColumn(label: Text("Status")),
+                  DataColumn(label: Text("Tipe RM")),
+                  DataColumn(label: Text("Waktu")),
+                ],
+                rows: List.generate(receivedList.length, (index) {
+                  final row = receivedList[index];
+                  return DataRow(
+                    cells: [
+                      DataCell(Text("${index + 1}")),
+                      DataCell(Text(row["weight"] as String)),
+                      DataCell(Text(row["status"] ?? "-")),
+                      DataCell(Text(row["type_rm"] ?? "-")),
+                      DataCell(Text(row["time"].toString().substring(11, 19))),
+                    ],
+                  );
+                }),
+              ),
             ),
           ],
         ],

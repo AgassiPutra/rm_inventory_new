@@ -186,18 +186,28 @@ class _Menu1PageState extends State<Menu1Page> {
 
       await _notificationSubscription?.cancel();
       _notificationSubscription = null;
-
       _notificationSubscription = bluetoothManager.weightStream.listen(
         (weightData) {
           debugPrint("📩 Data dari ESP32: '$weightData'");
-          if (weightData == 'SAVE_SIGNAL') {
+          if (weightData.startsWith('SAVE_SIGNAL')) {
+            final parts = weightData.split(':');
+            if (parts.length == 2 && parts[1].isNotEmpty) {
+              final parsedWeight = double.tryParse(parts[1]);
+              if (parsedWeight != null && parsedWeight > 0) {
+                if (mounted) {
+                  _saveWeightDirectly(parsedWeight);
+                }
+                return;
+              }
+            }
             if (mounted) {
               _saveCurrentWeight();
             }
             return;
           }
-          try {
-            final weight = double.parse(weightData);
+          final cleanData = weightData.trim();
+          final weight = double.tryParse(cleanData);
+          if (weight != null) {
             if (mounted) {
               setState(() {
                 esp32Weight = weight.toStringAsFixed(2);
@@ -205,8 +215,10 @@ class _Menu1PageState extends State<Menu1Page> {
                     "Terhubung ke ${device.name} | Berat: ${esp32Weight} kg";
               });
             }
-          } catch (e) {
-            debugPrint("Gagal parsing data: '$weightData', error: $e");
+          } else {
+            debugPrint(
+              "Gagal parsing data: '$weightData' (clean: '$cleanData') bukan angka valid",
+            );
             if (mounted) {
               setState(() {
                 esp32Weight = null;
@@ -272,6 +284,113 @@ class _Menu1PageState extends State<Menu1Page> {
     }
   }
 
+  Future<void> _saveWeightDirectly(double weight) async {
+    if (isReceivingWeight) return;
+    setState(() => isReceivingWeight = true);
+
+    if (selectedStatusPenerimaan == null || selectedTipeRM == null) {
+      _showSnackBar(
+        'Harap lengkapi Status Penerimaan dan Tipe RM.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    if (lastSubmittedFaktur == null) {
+      _showSnackBar(
+        'Faktur belum disubmit. Harap Submit form utama terlebih dahulu.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final token = await getToken();
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id') ?? 'guest';
+
+    if (token == null || token.isEmpty) {
+      _showSnackBar(
+        'Token tidak ditemukan. Silakan login ulang.',
+        isError: true,
+      );
+      setState(() => isReceivingWeight = false);
+      return;
+    }
+
+    final apiEndpoint = 'gtsrm/api/timbangan?Faktur=$lastSubmittedFaktur';
+    final weightData = {
+      "weight": weight.toStringAsFixed(2),
+      "status": selectedStatusPenerimaan,
+      "type_rm": selectedTipeRM,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(weightData),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSnackBar(
+          'Data timbangan ${weight.toStringAsFixed(2)} kg berhasil dikirim.',
+        );
+      } else {
+        throw Exception(
+          jsonDecode(response.body)['message'] ?? 'Gagal kirim data timbangan',
+        );
+      }
+    } catch (e) {
+      debugPrint("Error submit weight: $e. Menyimpan ke antrian.");
+
+      final hiveService = HiveService.instance;
+      final queueItem = UploadQueue(
+        userId: userId,
+        apiEndpoint: apiEndpoint,
+        requestBodyJson: jsonEncode(weightData),
+        fileContentsBase64: const [],
+        status: 'PENDING',
+        menuType: 'MENU1_TIMBANGAN',
+        isMultipart: false,
+        token: token,
+        createdAt: DateTime.now(),
+        method: 'POST',
+        fakturLocalId: lastSubmittedFaktur!,
+      );
+      await hiveService.addItemToQueue(queueItem);
+      _showSnackBar(
+        'Timbangan disimpan lokal. Akan disinkronkan.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          receivedList.add({
+            "weight": weight.toStringAsFixed(2),
+            "status": selectedStatusPenerimaan,
+            "type_rm": selectedTipeRM,
+            "time": DateTime.now().toString().substring(0, 19),
+          });
+          receivedWeight = (receivedWeight ?? 0.0) + weight;
+          isReceivingWeight = false;
+        });
+        try {
+          await bluetoothManager.turnOnLed();
+          Future.delayed(Duration(seconds: 1), () {
+            bluetoothManager.turnOffLed();
+          });
+        } catch (e) {
+          debugPrint("Gagal kontrol LED: $e");
+        }
+      }
+    }
+  }
+
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -290,7 +409,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -355,7 +474,7 @@ class _Menu1PageState extends State<Menu1Page> {
       return;
     }
     final apiEndpointFull =
-        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
     const apiEndpoint = 'gtsrm/api/incoming-rm';
 
     final Map<String, dynamic> requestFields = {
@@ -555,7 +674,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -605,6 +724,14 @@ class _Menu1PageState extends State<Menu1Page> {
           receivedWeight = (receivedWeight ?? 0.0) + parsedWeight;
           isReceivingWeight = false;
         });
+        try {
+          await bluetoothManager.turnOnLed();
+          Future.delayed(Duration(seconds: 1), () {
+            bluetoothManager.turnOffLed();
+          });
+        } catch (e) {
+          debugPrint("Gagal kontrol LED: $e");
+        }
       }
     }
   }
@@ -1030,7 +1157,7 @@ class _Menu1PageState extends State<Menu1Page> {
                       SizedBox(height: 24),
                     ],
                     Center(
-                      child: connectedDevice != null && esp32Weight != null
+                      child: connectedDevice != null
                           ? _buildConnectedScaleUI()
                           : _buildConnectionUI(),
                     ),
@@ -1081,7 +1208,7 @@ class _Menu1PageState extends State<Menu1Page> {
           ),
           SizedBox(height: 8),
           Text(
-            weight != null ? '${weight.toStringAsFixed(2)} kg' : '- kg',
+            weight != null ? '${weight.toStringAsFixed(2)} kg' : '0 kg',
             style: TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.bold,
@@ -1151,6 +1278,29 @@ class _Menu1PageState extends State<Menu1Page> {
               minimumSize: Size(double.infinity, 48),
             ),
           ),
+          // if (kDebugMode)
+          //   Padding(
+          //     padding: EdgeInsets.only(top: 12),
+          //     child: Wrap(
+          //       spacing: 8,
+          //       children: [
+          //         ElevatedButton(
+          //           onPressed: () => bluetoothManager.simulateWeight("0.00"),
+          //           child: Text("Simulasi 0.00"),
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor: Colors.grey,
+          //           ),
+          //         ),
+          //         ElevatedButton(
+          //           onPressed: () => bluetoothManager.simulateWeight("12.34"),
+          //           child: Text("Simulasi 12.34"),
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor: Colors.grey,
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
           if (receivedList.isNotEmpty) ...[
             const SizedBox(height: 20),
             const Text(

@@ -16,11 +16,13 @@ class BluetoothManagerWeb implements BluetoothManager {
   BluetoothDevice? _device;
   BluetoothCharacteristic? _notifyChar;
   StreamSubscription<ByteData>? _valueSub;
+  BluetoothCharacteristic? _receiveChar;
 
   String _status = 'Idle';
   static const String _serviceUuid = 'cd5cac32-0548-437b-b273-e0bf0d372110';
   static const String _charUuid = 'bb0c63ff-6916-4c89-b62e-a2b090c78601';
   static const String _ledUuID = 'b75501ff-4e00-45d1-bab1-09f4b5a6dddf';
+  static const String _buttonUuID = '9756e987-de9a-4240-b263-bd84869ef6ea';
 
   @override
   Stream<String> get weightStream => _weightController.stream;
@@ -30,6 +32,8 @@ class BluetoothManagerWeb implements BluetoothManager {
 
   @override
   String get status => _status;
+  String? _latestWeight;
+  BluetoothCharacteristic? _ledChar;
 
   @override
   Future<void> scanForDevices() async {
@@ -96,19 +100,39 @@ class BluetoothManagerWeb implements BluetoothManager {
       final ch = await service.getCharacteristic(_charUuid);
       _notifyChar = ch;
 
+      try {
+        final ledCh = await service.getCharacteristic(_ledUuID);
+        _ledChar = ledCh;
+        print('LED characteristic found');
+      } catch (e) {
+        print('LED characteristic not found: $e');
+        _ledChar = null;
+      }
+
+      try {
+        final receiveCh = await service.getCharacteristic(_buttonUuID);
+        _receiveChar = receiveCh;
+        await receiveCh.startNotifications();
+        receiveCh.value.listen((ByteData data) {
+          if (data.lengthInBytes == 1 && data.getUint8(0) == 1) {
+            print("✅ Perintah SIMPAN dari karakteristik RECEIVE");
+            _weightController.add('SAVE_SIGNAL:${_latestWeight ?? ""}');
+          }
+        });
+      } catch (e) {
+        print("⚠️ Karakteristik RECEIVE tidak ditemukan: $e");
+      }
+
       await ch.startNotifications();
 
       await _valueSub?.cancel();
       _valueSub = ch.value.listen(
         (ByteData data) {
-          if (data.lengthInBytes == 1 && data.getUint8(0) == 1) {
-            print("Perintah SIMPAN (1 byte) diterima dari ESP32");
-            _weightController.add('SAVE_SIGNAL');
-          } else {
-            final weightString = _decodeText(data).trim();
-            if (weightString.isNotEmpty) {
-              _weightController.add(weightString);
-            }
+          // print("📡 Data mentah diterima: ${data.buffer.asUint8List()}");
+          final weightString = _decodeText(data).trim();
+          if (weightString.isNotEmpty) {
+            _latestWeight = weightString;
+            _weightController.add(weightString);
           }
         },
         onError: (e) {
@@ -125,19 +149,39 @@ class BluetoothManagerWeb implements BluetoothManager {
       _status = 'Gagal komunikasi GATT: $e';
     } catch (e) {
       _status = 'Gagal menghubungkan: $e';
+      print('Connect error: $e');
     }
   }
 
   String _decodeText(ByteData data) {
     final bytes = data.buffer.asUint8List();
     int last = bytes.length - 1;
-    while (last >= 0 && bytes[last] == 0) {
+    while (last >= 0 && (bytes[last] == 0 || bytes[last] == 32)) {
       last--;
     }
     if (last < 0) return '';
-
     final trimmed = Uint8List.sublistView(bytes, 0, last + 1);
-    return utf8.decode(trimmed, allowMalformed: true);
+    return utf8.decode(trimmed, allowMalformed: true).trim();
+  }
+
+  Future<void> turnOnLed() async {
+    if (_ledChar == null) return;
+    try {
+      await _ledChar!.writeValueWithResponse(Uint8List.fromList([1]));
+      print('LED ON');
+    } catch (e) {
+      print('Gagal nyalakan LED: $e');
+    }
+  }
+
+  Future<void> turnOffLed() async {
+    if (_ledChar == null) return;
+    try {
+      await _ledChar!.writeValueWithResponse(Uint8List.fromList([0]));
+      print('LED OFF');
+    } catch (e) {
+      print('Gagal matikan LED: $e');
+    }
   }
 
   Future<void> _stopNotifications() async {
@@ -152,6 +196,10 @@ class BluetoothManagerWeb implements BluetoothManager {
         await ch.stopNotifications();
       }
     } catch (_) {}
+  }
+
+  void simulateWeight(String weight) {
+    _weightController.add(weight);
   }
 
   @override
