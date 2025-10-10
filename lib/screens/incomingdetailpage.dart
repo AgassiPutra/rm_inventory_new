@@ -303,9 +303,9 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
         try {
           await bluetoothManager.turnOnLed();
-          Future.delayed(Duration(seconds: 1), () {
-            bluetoothManager.turnOffLed();
-          });
+          // Future.delayed(Duration(seconds: 1), () {
+          //   bluetoothManager.turnOffLed();
+          // });
         } catch (e) {
           debugPrint("Gagal kontrol LED: $e");
         }
@@ -414,9 +414,9 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         });
         try {
           await bluetoothManager.turnOnLed();
-          Future.delayed(Duration(seconds: 1), () {
-            bluetoothManager.turnOffLed();
-          });
+          // Future.delayed(Duration(seconds: 1), () {
+          //   bluetoothManager.turnOffLed();
+          // });
         } catch (e) {
           debugPrint("Gagal kontrol LED: $e");
         }
