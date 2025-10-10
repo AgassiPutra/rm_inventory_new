@@ -381,9 +381,9 @@ class _Menu1PageState extends State<Menu1Page> {
         });
         try {
           await bluetoothManager.turnOnLed();
-          Future.delayed(Duration(seconds: 1), () {
-            bluetoothManager.turnOffLed();
-          });
+          // Future.delayed(Duration(seconds: 1), () {
+          //   bluetoothManager.turnOffLed();
+          // });
         } catch (e) {
           debugPrint("Gagal kontrol LED: $e");
         }
@@ -726,9 +726,9 @@ class _Menu1PageState extends State<Menu1Page> {
         });
         try {
           await bluetoothManager.turnOnLed();
-          Future.delayed(Duration(seconds: 1), () {
-            bluetoothManager.turnOffLed();
-          });
+          // Future.delayed(Duration(seconds: 1), () {
+          //   bluetoothManager.turnOffLed();
+          // });
         } catch (e) {
           debugPrint("Gagal kontrol LED: $e");
         }
