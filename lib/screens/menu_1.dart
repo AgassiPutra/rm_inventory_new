@@ -98,12 +98,38 @@ class _Menu1PageState extends State<Menu1Page> {
     final now = DateTime.now();
     currentTime =
         "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    String currentShift = getShiftFromTime(currentTime);
     currentTimeController = TextEditingController(text: currentTime);
-    shiftController = TextEditingController(text: 'Shift 2');
+    shiftController = TextEditingController(text: currentShift);
     qtyPoController = TextEditingController();
     produsenController = TextEditingController();
     bluetoothManager = web.BluetoothManagerWeb();
     fetchSuppliers();
+    Timer.periodic(const Duration(minutes: 1), (timer) {
+      final now = DateTime.now();
+      final currentTimeStr =
+          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+
+      setState(() {
+        currentTimeController.text = currentTimeStr;
+        shiftController.text = getShiftFromTime(currentTimeStr);
+      });
+    });
+  }
+
+  String getShiftFromTime(String time) {
+    final parts = time.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final totalMinutes = hour * 60 + minute;
+
+    if (totalMinutes >= 6 * 60 && totalMinutes < 14 * 60) {
+      return 'Shift 1';
+    } else if (totalMinutes >= 14 * 60 && totalMinutes < 22 * 60) {
+      return 'Shift 2';
+    } else {
+      return 'Shift 3';
+    }
   }
 
   @override
