@@ -29,6 +29,7 @@ class _Menu1PageState extends State<Menu1Page> {
   final Uuid _uuid = Uuid();
 
   bool isLoadingSuppliers = false;
+  late Timer _timeUpdateTimer;
   late String currentTime;
   late TextEditingController currentTimeController;
   late TextEditingController shiftController;
@@ -105,15 +106,16 @@ class _Menu1PageState extends State<Menu1Page> {
     produsenController = TextEditingController();
     bluetoothManager = web.BluetoothManagerWeb();
     fetchSuppliers();
-    Timer.periodic(const Duration(minutes: 1), (timer) {
+    _timeUpdateTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       final now = DateTime.now();
       final currentTimeStr =
           "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-
-      setState(() {
-        currentTimeController.text = currentTimeStr;
-        shiftController.text = getShiftFromTime(currentTimeStr);
-      });
+      if (mounted) {
+        setState(() {
+          currentTimeController.text = currentTimeStr;
+          shiftController.text = getShiftFromTime(currentTimeStr);
+        });
+      }
     });
   }
 
@@ -140,6 +142,7 @@ class _Menu1PageState extends State<Menu1Page> {
     produsenController.dispose();
     _notificationSubscription?.cancel();
     bluetoothManager.dispose();
+    _timeUpdateTimer.cancel();
     super.dispose();
   }
 
