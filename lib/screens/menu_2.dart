@@ -27,6 +27,7 @@ class _Menu2PageState extends State<Menu2Page> {
   String? errorMessage;
   int? _sortColumnIndex;
   bool _sortAscending = true;
+  String? userRole;
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _Menu2PageState extends State<Menu2Page> {
     fetchIncomingRM();
     filteredData = List.from(data);
     Auth.check(context);
+    _loadUserRole();
   }
 
   @override
@@ -63,6 +65,85 @@ class _Menu2PageState extends State<Menu2Page> {
       _sortColumnIndex = columnIndex;
       _sortAscending = ascending;
     });
+  }
+
+  Future<void> _loadUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('posisi');
+    if (mounted) {
+      setState(() {
+        userRole = role;
+      });
+    }
+  }
+
+  void _showDeleteConfirmationDialog(String faktur) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Konfirmasi Hapus'),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus data dengan faktur "$faktur"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              deleteIncomingRM(faktur);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> deleteIncomingRM(String faktur) async {
+    final token = await getToken();
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Token tidak valid. Silakan login ulang.')),
+      );
+      return;
+    }
+
+    final url =
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?Faktur=$faktur';
+
+    try {
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Data berhasil dihapus')));
+        fetchIncomingRM();
+      } else {
+        final errorMsg =
+            jsonDecode(response.body)['message'] ?? 'Gagal menghapus';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $errorMsg'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Kesalahan jaringan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void applyFilter() {
@@ -473,17 +554,39 @@ class _Menu2PageState extends State<Menu2Page> {
                                 DataCell(Text(row['supplier'] ?? '')),
                                 DataCell(Text(row['tanggal_incoming'] ?? '')),
                                 DataCell(
-                                  IconButton(
-                                    icon: Icon(Icons.edit, color: Colors.blue),
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              IncomingDetailPage(data: row),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: Colors.blue,
                                         ),
-                                      );
-                                    },
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  IncomingDetailPage(data: row),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      if (userRole == 'supervisor' ||
+                                          userRole == 'SUPERVISOR' ||
+                                          userRole == 'Supervisor')
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.delete,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed: () {
+                                            _showDeleteConfirmationDialog(
+                                              row['faktur'],
+                                            );
+                                          },
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ],

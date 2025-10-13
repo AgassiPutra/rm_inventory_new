@@ -30,6 +30,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   void initState() {
     super.initState();
     bluetoothManager = web.BluetoothManagerWeb();
+    final initialQtyPo = widget.data['qty_po']?.toString() ?? '0';
+    qtyPoController = TextEditingController(text: initialQtyPo);
     _qtyLoss = '0';
     selectedJenisRm = widget.data['jenis_rm'];
     fetchIncomingDetail(widget.data['faktur']);
@@ -41,6 +43,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   void dispose() {
     _notificationSubscription?.cancel();
     bluetoothManager.dispose();
+    qtyPoController.dispose();
     super.dispose();
   }
 
@@ -63,6 +66,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   double? receivedWeight;
   String? _latestWeight;
   bool isReceivingWeight = false;
+  late TextEditingController qtyPoController;
 
   String? selectedStatusPenerimaan;
   String? selectedTipeRM;
@@ -80,6 +84,67 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final token = prefs.getString('auth_token');
     print('Token from SharedPreferences: $token');
     return token;
+  }
+
+  Future<void> updateQtyPo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    final faktur = widget.data['faktur'];
+    final newQtyPo = qtyPoController.text.trim();
+
+    if (newQtyPo.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Masukkan nilai Quantity PO')));
+      return;
+    }
+    if (double.tryParse(newQtyPo) == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Quantity PO harus berupa angka')));
+      return;
+    }
+
+    final url = Uri.parse(
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-po?Faktur=$faktur",
+    );
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"qty_po": newQtyPo}),
+      );
+
+      print(
+        "Update Qty PO Response: ${response.statusCode} - ${response.body}",
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Quantity PO berhasil diperbarui!')),
+        );
+        fetchIncomingDetail(faktur);
+      } else {
+        final errorMsg = jsonDecode(response.body)['message'] ?? 'Gagal update';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $errorMsg'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error jaringan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> scanForDevices() async {
@@ -876,11 +941,51 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                       _buildInfoRow('Type', widget.data['jenis_rm']),
                       _buildInfoRow('Supplier', widget.data['supplier']),
                       _buildInfoRow('Unit', widget.data['unit']),
-                      _buildInfoRow(
-                        'Quantity PO',
-                        (widget.data['qty_po'] != null)
-                            ? '${widget.data['qty_po']} KG'
-                            : '0 KG',
+                      SizedBox(height: 12),
+                      _buildSection(
+                        title: 'Quantity PO',
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info, color: Colors.blue),
+                                SizedBox(width: 8),
+                                Text('Current Quantity PO: '),
+                                Text(
+                                  '${widget.data['qty_po'] ?? '0'} KG',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          TextField(
+                            controller: qtyPoController,
+                            decoration: InputDecoration(
+                              labelText: 'Update Quantity PO',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          SizedBox(height: 10),
+                          ElevatedButton.icon(
+                            icon: Icon(Icons.save),
+                            label: Text('Save Quantity PO'),
+                            onPressed: updateQtyPo,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
