@@ -30,7 +30,6 @@ class _Menu1PageState extends State<Menu1Page> {
 
   bool isLoadingSuppliers = false;
   late Timer _timeUpdateTimer;
-  late String currentTime;
   late TextEditingController currentTimeController;
   late TextEditingController shiftController;
   late TextEditingController produsenController;
@@ -95,26 +94,17 @@ class _Menu1PageState extends State<Menu1Page> {
   void initState() {
     super.initState();
     Auth.check(context);
-
     final now = DateTime.now();
-    currentTime =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-    String currentShift = getShiftFromTime(currentTime);
-    currentTimeController = TextEditingController(text: currentTime);
-    shiftController = TextEditingController(text: currentShift);
+    currentTimeController = TextEditingController();
+    shiftController = TextEditingController();
     qtyPoController = TextEditingController();
     produsenController = TextEditingController();
     bluetoothManager = web.BluetoothManagerWeb();
     fetchSuppliers();
+    _updateTime();
     _timeUpdateTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      final now = DateTime.now();
-      final currentTimeStr =
-          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
       if (mounted) {
-        setState(() {
-          currentTimeController.text = currentTimeStr;
-          shiftController.text = getShiftFromTime(currentTimeStr);
-        });
+        _updateTime();
       }
     });
   }
@@ -162,6 +152,24 @@ class _Menu1PageState extends State<Menu1Page> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  void _updateTime() {
+    final now = DateTime.now();
+    final currentTimeStr =
+        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    final currentShift = getShiftFromTime(currentTimeStr);
+    if (currentTimeController == null) {
+      currentTimeController = TextEditingController(text: currentTimeStr);
+    } else {
+      currentTimeController.text = currentTimeStr;
+    }
+
+    if (shiftController == null) {
+      shiftController = TextEditingController(text: currentShift);
+    } else {
+      shiftController.text = currentShift;
+    }
   }
 
   Future<void> _pickImage(Function(XFile?) onPicked) async {
@@ -773,7 +781,7 @@ class _Menu1PageState extends State<Menu1Page> {
       produsenController.clear();
       invoiceFile = null;
       suratJalanFile = null;
-      currentTimeController.text = currentTime;
+      _updateTime();
     });
   }
 
@@ -786,12 +794,7 @@ class _Menu1PageState extends State<Menu1Page> {
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () {
-              final now = DateTime.now();
-              setState(() {
-                currentTime =
-                    "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-                currentTimeController.text = currentTime;
-              });
+              _updateTime();
             },
           ),
           IconButton(icon: Icon(Icons.person), onPressed: () {}),
