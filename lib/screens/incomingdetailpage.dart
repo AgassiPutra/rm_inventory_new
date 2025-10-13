@@ -51,6 +51,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   List<Map<String, dynamic>> scaleData = [];
   bool isLoading = true;
   bool showTambahDataForm = false;
+  String _userEntry = 'Unknown User';
 
   late web.BluetoothManagerWeb bluetoothManager;
   List<AppBluetoothDevice> foundDevices = [];
@@ -540,10 +541,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               print(
                 ">>> MATCH faktur: ${match['faktur']} | qty_losses: ${match['qty_losses']}",
               );
-
               setState(() {
                 _qtyLoss = match['qty_losses']?.toString() ?? _qtyLoss;
                 quantityLossController.text = _qtyLoss;
+                _userEntry = match['user_entry']?.toString() ?? 'Unknown User';
                 isLoading = false;
               });
             } else {
@@ -771,7 +772,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         time,
         item['type_rm']?.toString() ?? '',
         item['status']?.toString() ?? '',
-        item['user']?.toString() ?? '',
+        _userEntry,
       ];
     });
     final csvContent = StringBuffer();
@@ -870,7 +871,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   item['date_time']?.toString() ?? '',
                   item['type_rm']?.toString() ?? '',
                   item['status']?.toString() ?? '',
-                  item['user']?.toString() ?? '',
+                  _userEntry,
                 ];
               }),
               headerStyle: pw.TextStyle(
@@ -1307,7 +1308,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               ],
             ),
             SizedBox(height: 4),
-            Text('Created by: Admin CK2', style: TextStyle(color: Colors.grey)),
+            Text(
+              'Created by: $_userEntry',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       ),
