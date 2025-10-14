@@ -10,7 +10,7 @@ import '../models/upload_queue.dart';
 import '../utils/file_manager.dart';
 
 class SyncService {
-  static const String _baseUrl = 'https://api-gts-rm.scm-ppa.com/';
+  static const String _baseUrl = 'https://trial-api-gts-rm.scm-ppa.com/';
 
   StreamSubscription? _connectivitySubscription;
   Timer? _retryTimer;

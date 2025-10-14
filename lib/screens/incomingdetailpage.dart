@@ -29,6 +29,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     bluetoothManager = web.BluetoothManagerWeb();
     final initialQtyPo = widget.data['qty_po']?.toString() ?? '0';
     qtyPoController = TextEditingController(text: initialQtyPo);
@@ -37,6 +38,13 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     fetchIncomingDetail(widget.data['faktur']);
     fetchTimbangan(widget.data['faktur']);
     bluetoothManager = web.BluetoothManagerWeb();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await getUserRole();
+    setState(() {
+      _userRole = role;
+    });
   }
 
   @override
@@ -68,15 +76,16 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   String? _latestWeight;
   bool isReceivingWeight = false;
   late TextEditingController qtyPoController;
+  String? _userRole;
 
   String? selectedStatusPenerimaan;
   String? selectedTipeRM;
   final Map<String, List<String>> tipeRMOptions = {
-    'WET CHICKEN': ['Boneless Dada (BLD)', 'Boneless Paha Kulit (BLPK)'],
-    'SAYURAN': ['Wortel', 'Bawang', 'Jamur'],
-    'DRY': ['Bumbu', 'Tepung', 'Lainnya'],
-    'ICE': ['Es Batu', 'Ice Cube'],
-    'UDANG': ['Udang Fresh', 'Udang Beku'],
+    'WET CHICKEN': ['BONELESS DADA (BLD)', 'BONELESS PAHA KULIT (BLPK)'],
+    'SAYURAN': ['WORTEL', 'BAWANG', 'JAMUR'],
+    'DRY': ['BUMBU', 'TEPUNG', 'LAINNYA'],
+    'ICE': ['ES BATU', 'ICE CUBE'],
+    'UDANG': ['UDANG FRESH', 'UDANG BEKU'],
   };
   String? selectedJenisRm;
 
@@ -107,7 +116,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-po?Faktur=$faktur",
+      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
     );
 
     try {
@@ -333,7 +342,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final response = await http.post(
         Uri.parse(
-          'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$fakturBaru',
+          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$fakturBaru',
         ),
         headers: {
           'Authorization': 'Bearer $token',
@@ -379,6 +388,169 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
   }
 
+  Future<void> _editTimbangan(Map<String, dynamic> item) async {
+    final id = item['id']?.toString();
+    final weight = item['weight']?.toString();
+
+    if (id == null || weight == null) {
+      _showSnackBar(
+        'Error: ID atau berat timbangan tidak ditemukan.',
+        isError: true,
+      );
+      return;
+    }
+
+    String selectedStatus =
+        item['status']?.toString().toUpperCase() ?? 'NORMAL';
+    String? selectedTypeRm = item['type_rm']?.toString();
+
+    final availableTypes = tipeRMOptions[selectedJenisRm] ?? [];
+    if (selectedTypeRm == null || !availableTypes.contains(selectedTypeRm)) {
+      selectedTypeRm = availableTypes.isNotEmpty ? availableTypes.first : null;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter dialogSetState) {
+            return AlertDialog(
+              title: Text('Edit Timbangan'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    items: ['NORMAL', 'REJECT', 'RETUR']
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        dialogSetState(() => selectedStatus = v);
+                      }
+                    },
+                    decoration: InputDecoration(labelText: 'Status'),
+                  ),
+                  SizedBox(height: 12),
+                  if (selectedTypeRm != null)
+                    DropdownButtonFormField<String>(
+                      value: selectedTypeRm,
+                      items: availableTypes
+                          .map(
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          dialogSetState(() => selectedTypeRm = v);
+                        }
+                      },
+                      decoration: InputDecoration(labelText: 'Tipe RM'),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final token = await getToken();
+                    if (token == null) return;
+
+                    try {
+                      final bodyData = {
+                        'weight': weight,
+                        'status': selectedStatus,
+                        'type_rm': selectedTypeRm,
+                      };
+
+                      print(
+                        "Mengirim update dengan data: ${jsonEncode(bodyData)}",
+                      );
+
+                      final response = await http.put(
+                        Uri.parse(
+                          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
+                        ),
+                        headers: {
+                          'Authorization': 'Bearer $token',
+                          'Content-Type': 'application/json',
+                        },
+                        body: jsonEncode(bodyData),
+                      );
+
+                      if (response.statusCode == 200) {
+                        _showSnackBar('Data timbangan berhasil diupdate');
+                        fetchTimbangan(widget.data['faktur']);
+                      } else {
+                        final errorBody = jsonDecode(response.body);
+                        final message = errorBody['message'] ?? response.body;
+                        throw Exception('Gagal update: $message');
+                      }
+                    } catch (e) {
+                      _showSnackBar('Error: $e', isError: true);
+                    }
+                  },
+                  child: Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteTimbangan(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Hapus Data?'),
+        content: Text('Yakin ingin menghapus data ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final token = await getToken();
+      if (token == null) return;
+
+      try {
+        final response = await http.delete(
+          Uri.parse(
+            'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
+          ),
+          headers: {'Authorization': 'Bearer $token'},
+        );
+
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Berhasil dihapus')));
+          fetchTimbangan(widget.data['faktur']);
+        } else {
+          throw Exception('Gagal hapus');
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _saveCurrentWeight() async {
     if (isReceivingWeight) return;
     setState(() => isReceivingWeight = true);
@@ -419,7 +591,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       return;
     }
 
-    final apiEndpoint = 'gtsrm/api/timbangan?Faktur=$fakturBaru';
+    final apiEndpoint = 'gtsrm/api/timbangan?faktur=$fakturBaru';
     final weightData = {
       "weight": parsedWeight.toStringAsFixed(2),
       "status": selectedStatusPenerimaan,
@@ -428,7 +600,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -490,6 +662,11 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
   }
 
+  Future<String?> getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('posisi');
+  }
+
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -509,8 +686,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
 
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm"
-      "?Faktur=$faktur"
+      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm"
+      "?faktur=$faktur"
       "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
       "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
     );
@@ -569,7 +746,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final uri = Uri.parse(
-        "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?Faktur=$faktur",
+        "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
       );
       final request = http.MultipartRequest('PUT', uri);
 
@@ -623,11 +800,9 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   Future<void> fetchTimbangan(String faktur) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
-
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?Faktur=$faktur",
+      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$faktur",
     );
-
     try {
       final response = await http.get(
         url,
@@ -636,31 +811,25 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           "Content-Type": "application/json",
         },
       );
-
-      print("Status Timbangan: ${response.statusCode}");
-
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        if (decoded is Map && decoded.containsKey('data')) {
-          final data = decoded['data'];
-
-          if (data is List && data.isNotEmpty) {
-            final firstItem = data[0];
-            if (firstItem is Map && firstItem.isNotEmpty) {
-              final firstKey = firstItem.keys.first;
-              final listData = firstItem[firstKey];
-
-              setState(() {
-                scaleData = List<Map<String, dynamic>>.from(listData);
-                isLoading = false;
-              });
-              return;
-            }
+        final List<dynamic> dataList = decoded['data'] ?? [];
+        List<Map<String, dynamic>> flatList = [];
+        for (var item in dataList) {
+          if (item is Map) {
+            item.forEach((key, value) {
+              if (value is List) {
+                for (var entry in value) {
+                  if (entry is Map) {
+                    flatList.add(entry.cast<String, dynamic>());
+                  }
+                }
+              }
+            });
           }
         }
-
         setState(() {
-          scaleData = [];
+          scaleData = flatList;
           isLoading = false;
         });
       } else {
@@ -686,7 +855,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?Faktur=$faktur",
+      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
     );
 
     try {
@@ -1409,7 +1578,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
-      final url = Uri.parse("https://api-gts-rm.scm-ppa.com/$imagePath");
+      final url = Uri.parse("https://trial-api-gts-rm.scm-ppa.com/$imagePath");
 
       print("Fetching image: $url");
 
@@ -1903,21 +2072,44 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 )
               else
                 ...scaleData.map((item) {
+                  final id = item['id']?.toString();
                   final typeRm = item['type_rm'] ?? 'Unknown RM';
                   final weight = item['weight'] ?? 0;
                   final status = item['status'] ?? 'Unknown';
-                  final dateTime = item['date_time'] ?? '';
-                  return ListTile(
-                    leading: Icon(
-                      status.toString().toLowerCase() == 'retur'
-                          ? Icons.close
-                          : Icons.check_circle,
-                      color: status.toString().toLowerCase() == 'retur'
-                          ? Colors.red
-                          : Colors.green,
+                  final dateTime = item['date_time_entry'] ?? '';
+
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 4),
+                    child: ListTile(
+                      leading: Icon(
+                        status.toString().toLowerCase() == 'retur'
+                            ? Icons.close
+                            : Icons.check_circle,
+                        color: status.toString().toLowerCase() == 'retur'
+                            ? Colors.red
+                            : Colors.green,
+                      ),
+                      title: Text("$typeRm - ${weight.toString()} Kg"),
+                      subtitle: Text("Status: $status\n$dateTime"),
+                      trailing:
+                          _userRole == 'supervisor' ||
+                              _userRole == 'Supervisor' ||
+                              _userRole == 'SUPERVISOR' && id != null
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () => _editTimbangan(item),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deleteTimbangan(id!),
+                                ),
+                              ],
+                            )
+                          : null,
                     ),
-                    title: Text("$typeRm - ${weight.toString()} Kg"),
-                    subtitle: Text("Status: $status\n$dateTime"),
                   );
                 }).toList(),
             ],

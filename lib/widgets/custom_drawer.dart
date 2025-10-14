@@ -32,7 +32,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      nama = prefs.getString('nama') ?? '';
+      nama = prefs.getString('email') ?? '';
       posisi = prefs.getString('posisi') ?? '';
       unit = prefs.getString('jenis_unit') ?? '';
     });
