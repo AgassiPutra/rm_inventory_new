@@ -31,8 +31,8 @@ class _LoginPageState extends State<LoginPage> {
         }),
       );
 
-      print("Status code: ${response.statusCode}");
-      print("Response body: ${response.body}");
+      // print("Status code: ${response.statusCode}");
+      // print("Response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -51,19 +51,60 @@ class _LoginPageState extends State<LoginPage> {
 
           Navigator.pushReplacementNamed(context, '/dashboard');
         } else {
+          String errorMessage = 'Login gagal';
+          if (data['message'] != null) {
+            String serverMessage = data['message'].toString().toLowerCase();
+            if (serverMessage.contains('password') ||
+                serverMessage.contains('kata sandi')) {
+              errorMessage = 'Password yang Anda masukkan salah';
+            } else if (serverMessage.contains('email') ||
+                serverMessage.contains('username') ||
+                serverMessage.contains('pengguna')) {
+              errorMessage = 'Email atau username tidak ditemukan';
+            } else {
+              errorMessage = data['message'];
+            }
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['message'] ?? 'Login gagal')),
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
           );
         }
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email atau password salah'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Terjadi kesalahan server')),
+          const SnackBar(
+            content: Text('Terjadi kesalahan server'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
         );
       }
     } catch (e) {
       print("Error: $e");
+      String errorMessage = 'Tidak dapat terhubung ke server';
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
+        errorMessage = 'Tidak ada koneksi internet';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat terhubung ke server')),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
 

@@ -225,7 +225,7 @@ class _Menu1PageState extends State<Menu1Page> {
       _notificationSubscription = null;
       _notificationSubscription = bluetoothManager.weightStream.listen(
         (weightData) {
-          debugPrint("📩 Data dari ESP32: '$weightData'");
+          // debugPrint("📩 Data dari ESP32: '$weightData'");
           if (weightData.startsWith('SAVE_SIGNAL')) {
             final parts = weightData.split(':');
             if (parts.length == 2 && parts[1].isNotEmpty) {
@@ -356,7 +356,12 @@ class _Menu1PageState extends State<Menu1Page> {
       return;
     }
 
-    final apiEndpoint = 'gtsrm/api/timbangan?faktur=$lastSubmittedFaktur';
+    final hiveService = HiveService.instance;
+    final serverFaktur = await hiveService.getServerFaktur(
+      lastSubmittedFaktur!,
+    );
+    final fakturToUse = serverFaktur ?? lastSubmittedFaktur;
+    final apiEndpoint = 'gtsrm/api/timbangan?faktur=$fakturToUse';
     final weightData = {
       "weight": weight.toStringAsFixed(2),
       "status": selectedStatusPenerimaan,
@@ -431,16 +436,16 @@ class _Menu1PageState extends State<Menu1Page> {
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    print('Token from SharedPreferences: $token');
+    // print('Token from SharedPreferences: $token');
     return token;
   }
 
   Future<void> fetchSuppliers() async {
     final token = await getToken();
-    print('Token dari SharedPreferences: $token');
+    // print('Token dari SharedPreferences: $token');
 
     if (token == null || token.isEmpty) {
-      print('Token tidak ditemukan, user harus login');
+      // print('Token tidak ditemukan, user harus login');
       return;
     }
 
@@ -450,8 +455,8 @@ class _Menu1PageState extends State<Menu1Page> {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      print("Status code: ${response.statusCode}");
-      print("Response body: ${response.body}");
+      // print("Status code: ${response.statusCode}");
+      // print("Response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -589,9 +594,18 @@ class _Menu1PageState extends State<Menu1Page> {
         debugPrint("Raw Response Incoming-RM: $jsonRes");
 
         final fakturServer = jsonRes['data']?['faktur'];
+        final localFaktur = lastSubmittedFaktur;
+        if (localFaktur != null &&
+            localFaktur != fakturServer &&
+            localFaktur.startsWith('UUID-')) {
+          final hiveService = HiveService.instance;
+          await hiveService.updateFakturMapping(localFaktur, fakturServer);
+        }
+
         setState(() {
           lastSubmittedFaktur = fakturServer;
         });
+
         if (!kIsWeb) {
           for (var path in filePaths) {
             await FileManager.deleteFile(path);
@@ -702,7 +716,12 @@ class _Menu1PageState extends State<Menu1Page> {
       return;
     }
 
-    final apiEndpoint = 'gtsrm/api/timbangan?faktur=$lastSubmittedFaktur';
+    final hiveService = HiveService.instance;
+    final serverFaktur = await hiveService.getServerFaktur(
+      lastSubmittedFaktur!,
+    );
+    final fakturToUse = serverFaktur ?? lastSubmittedFaktur;
+    final apiEndpoint = 'gtsrm/api/timbangan?faktur=$fakturToUse';
     final weightData = {
       "weight": parsedWeight.toStringAsFixed(2),
       "status": selectedStatusPenerimaan,

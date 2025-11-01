@@ -86,12 +86,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ),
           ),
           drawerItem(context, 'Dashboard', '/dashboard'),
-          drawerItem(context, 'RM Incoming', '/menu1'),
+          drawerItem(context, 'RM Incoming', '/incoming-material'),
           drawerItem(context, 'RM Incoming Dashboard', '/menu2'),
           drawerItem(context, 'Master Supplier', '/menu3'),
-          drawerItem(context, 'QC Inspection', '/menu4'),
-          drawerItem(context, 'Batching', '/menu5'),
-          drawerItem(context, 'Master', '/menu6'),
+          // drawerItem(context, 'QC Inspection', '/incoming-management'),
+          // drawerItem(context, 'Batching', '/master-supplier'),
+          // drawerItem(context, 'Master', '/menu6'),
           const Divider(),
           ListTile(
             title: const Text(

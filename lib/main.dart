@@ -12,6 +12,7 @@ import 'screens/menu_4.dart';
 import 'screens/menu_5.dart';
 import 'screens/menu_6.dart';
 import 'screens/splash.dart';
+import 'screens/incoming_material.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -48,12 +49,12 @@ class MyApp extends StatelessWidget {
         '/splash': (context) => SplashScreen(),
         '/login': (context) => LoginPage(),
         '/dashboard': (context) => DashboardPage(),
-        '/menu1': (context) => Menu1Page(),
+        '/incoming-material': (context) => Menu1Page(),
         '/menu2': (context) => Menu2Page(),
         '/menu3': (context) => Menu3Page(),
-        '/menu4': (context) => Menu4Page(),
-        '/menu5': (context) => Menu5Page(),
-        '/menu6': (context) => Menu6Page(),
+        // '/incoming-management': (context) => IncomingManagementPage(),
+        // '/master-supplier': (context) => MasterSupplierPage(),
+        // '/menu6': (context) => Menu6Page(),
       },
     );
   }

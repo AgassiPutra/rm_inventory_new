@@ -332,8 +332,8 @@ class _Menu3PageState extends State<Menu3Page> {
         );
         fetchSuppliers();
       } else {
-        print('Status Code: ${response.statusCode}');
-        print('Response Body: ${response.body}');
+        // print('Status Code: ${response.statusCode}');
+        // print('Response Body: ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal menghapus: ${response.body}'),

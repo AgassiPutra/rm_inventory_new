@@ -19,8 +19,10 @@ class _Menu2PageState extends State<Menu2Page> {
   final supplierController = TextEditingController();
   final tanggalAwalController = TextEditingController();
   final tanggalAkhirController = TextEditingController();
-  final DateTime today = DateTime.now();
+  final apiTanggalAwalController = TextEditingController();
+  final apiTanggalAkhirController = TextEditingController();
 
+  final DateTime today = DateTime.now();
   List<Map<String, dynamic>> data = [];
   late List<Map<String, dynamic>> filteredData = [];
   bool isLoading = true;
@@ -32,8 +34,14 @@ class _Menu2PageState extends State<Menu2Page> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    final firstDayOfPreviousMonth = DateTime(now.year, now.month - 1, 1);
+
+    final DateFormat formatter = DateFormat('yyyy-MM-dd');
+    apiTanggalAwalController.text = formatter.format(firstDayOfPreviousMonth);
+    apiTanggalAkhirController.text = formatter.format(now);
     fetchIncomingRM();
-    filteredData = List.from(data);
+
     Auth.check(context);
     _loadUserRole();
   }
@@ -46,6 +54,8 @@ class _Menu2PageState extends State<Menu2Page> {
     supplierController.dispose();
     tanggalAwalController.dispose();
     tanggalAkhirController.dispose();
+    apiTanggalAwalController.dispose();
+    apiTanggalAkhirController.dispose();
     super.dispose();
   }
 
@@ -65,6 +75,11 @@ class _Menu2PageState extends State<Menu2Page> {
       _sortColumnIndex = columnIndex;
       _sortAscending = ascending;
     });
+  }
+
+  Future<String?> getLokasiUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jenis_unit');
   }
 
   Future<void> _loadUserRole() async {
@@ -167,9 +182,9 @@ class _Menu2PageState extends State<Menu2Page> {
         final supplierMatch =
             supplier.isEmpty ||
             (row['supplier'] ?? '').toLowerCase().contains(supplier);
-
         bool tanggalMatch = true;
         final tanggalIncoming = row['tanggal_incoming'] ?? '';
+
         if (tanggalAwal.isNotEmpty &&
             tanggalAkhir.isNotEmpty &&
             tanggalIncoming.isNotEmpty) {
@@ -196,10 +211,8 @@ class _Menu2PageState extends State<Menu2Page> {
     unitController.clear();
     typeController.clear();
     supplierController.clear();
-
-    setState(() {
-      filteredData = List.from(data);
-    });
+    tanggalAwalController.clear();
+    tanggalAkhirController.clear();
   }
 
   Future<String?> getToken() async {
@@ -215,31 +228,39 @@ class _Menu2PageState extends State<Menu2Page> {
 
     try {
       final token = await getToken();
-      print('Token: $token');
+      final String? lokasiUnit = await getLokasiUnit();
 
       if (token == null) {
         setState(() {
           errorMessage = 'Token tidak ditemukan. Silakan login ulang.';
           isLoading = false;
         });
-        print('Token null, keluar dari fetch');
+        return;
+      }
+      if (lokasiUnit == null || lokasiUnit.isEmpty) {
+        setState(() {
+          errorMessage = 'Lokasi unit tidak terdeteksi. Silakan login ulang.';
+          isLoading = false;
+        });
         return;
       }
 
-      final DateTime today = DateTime.now();
-      final DateFormat formatter = DateFormat('yyyy-MM-dd');
-      final DateTime firstDayOfMonth = DateTime(today.year, today.month, 1);
-      final DateTime tomorrow = today.add(const Duration(days: 1));
+      const String baseUrl =
+          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
 
-      final String tanggalAwal = tanggalAwalController.text.isNotEmpty
-          ? tanggalAwalController.text
-          : formatter.format(firstDayOfMonth);
-      final String tanggalAkhir = tanggalAkhirController.text.isNotEmpty
-          ? tanggalAkhirController.text
-          : formatter.format(tomorrow);
+      final Map<String, String> queryParams = {'lokasi_unit': lokasiUnit};
+      final String tanggalAwal = apiTanggalAwalController.text.trim();
+      final String tanggalAkhir = apiTanggalAkhirController.text.trim();
 
-      final url =
-          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+      if (tanggalAwal.isNotEmpty) {
+        queryParams['tanggalAwal'] = tanggalAwal;
+      }
+      if (tanggalAkhir.isNotEmpty) {
+        queryParams['tanggalAkhir'] = tanggalAkhir;
+      }
+
+      final Uri uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+      final String url = uri.toString();
 
       print('Fetching URL: $url');
 
@@ -247,9 +268,6 @@ class _Menu2PageState extends State<Menu2Page> {
         Uri.parse(url),
         headers: {'Authorization': 'Bearer $token'},
       );
-
-      print('Status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
@@ -259,12 +277,13 @@ class _Menu2PageState extends State<Menu2Page> {
           data = items
               .map<Map<String, dynamic>>((item) => item as Map<String, dynamic>)
               .toList();
+
           if (data.isEmpty) {
             errorMessage = 'Tidak ada data pengiriman RM pada periode ini.';
           } else {
             errorMessage = null;
           }
-
+          clearFilter();
           applyFilter();
         });
       } else {
@@ -287,7 +306,7 @@ class _Menu2PageState extends State<Menu2Page> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Filter Data'),
+        title: Text('Filter Data Lokal'),
         content: SingleChildScrollView(
           child: Column(
             children: [
@@ -320,48 +339,24 @@ class _Menu2PageState extends State<Menu2Page> {
                 ),
               ),
               GestureDetector(
-                onTap: () async {
-                  DateTime? picked = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    tanggalAwalController.text = picked
-                        .toIso8601String()
-                        .substring(0, 10);
-                  }
-                },
+                onTap: () => _selectDate(context, tanggalAwalController),
                 child: AbsorbPointer(
                   child: TextField(
                     controller: tanggalAwalController,
                     decoration: InputDecoration(
-                      labelText: 'Tanggal Awal (YYYY-MM-DD)',
+                      labelText: 'Filter Tanggal Awal',
                       prefixIcon: Icon(Icons.date_range),
                     ),
                   ),
                 ),
               ),
               GestureDetector(
-                onTap: () async {
-                  DateTime? picked = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    tanggalAkhirController.text = picked
-                        .toIso8601String()
-                        .substring(0, 10);
-                  }
-                },
+                onTap: () => _selectDate(context, tanggalAkhirController),
                 child: AbsorbPointer(
                   child: TextField(
                     controller: tanggalAkhirController,
                     decoration: InputDecoration(
-                      labelText: 'Tanggal Akhir (YYYY-MM-DD)',
+                      labelText: 'Filter Tanggal Akhir',
                       prefixIcon: Icon(Icons.date_range),
                     ),
                   ),
@@ -374,16 +369,14 @@ class _Menu2PageState extends State<Menu2Page> {
           TextButton(
             onPressed: () {
               clearFilter();
-              tanggalAwalController.clear();
-              tanggalAkhirController.clear();
-              fetchIncomingRM();
+              applyFilter();
               Navigator.pop(context);
             },
             child: Text('Clear'),
           ),
           ElevatedButton(
             onPressed: () {
-              fetchIncomingRM();
+              applyFilter();
               Navigator.pop(context);
             },
             child: Text('Apply'),
@@ -393,81 +386,43 @@ class _Menu2PageState extends State<Menu2Page> {
     );
   }
 
-  void _showEditDialog(Map<String, dynamic> rowData) {
-    fakturController.text = rowData['faktur'] ?? '';
-    unitController.text = rowData['unit'] ?? '';
-    typeController.text = rowData['jenis_rm'] ?? '';
-    supplierController.text = rowData['supplier'] ?? '';
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Edit Data'),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: fakturController,
-                decoration: InputDecoration(labelText: 'Faktur'),
-              ),
-              TextField(
-                controller: unitController,
-                decoration: InputDecoration(labelText: 'Unit'),
-              ),
-              TextField(
-                controller: typeController,
-                decoration: InputDecoration(labelText: 'Jenis RM'),
-              ),
-              TextField(
-                controller: supplierController,
-                decoration: InputDecoration(labelText: 'Supplier'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                rowData['faktur'] = fakturController.text;
-                rowData['unit'] = unitController.text;
-                rowData['jenis_rm'] = typeController.text;
-                rowData['supplier'] = supplierController.text;
-                applyFilter();
-              });
-              Navigator.pop(context);
-            },
-            child: Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
+  void _showEditDialog(Map<String, dynamic> rowData) {}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Incoming Raw Materials'),
+        backgroundColor: Colors.white,
+        elevation: 2.0,
+        iconTheme: IconThemeData(color: Colors.black87),
+        title: Text(
+          'Incoming Raw Materials',
+          style: TextStyle(color: Colors.black87),
+        ),
         actions: [
           IconButton(
             icon: Icon(Icons.filter_alt_outlined),
+            color: Colors.black87,
+            tooltip: "Filter Data Lokal",
             onPressed: () {
               _showFilterDialog();
             },
           ),
           IconButton(
             icon: Icon(Icons.refresh),
+            color: Colors.black87,
+            tooltip: "Refresh Data dari Server",
             onPressed: () {
               fetchIncomingRM();
             },
           ),
-          IconButton(icon: Icon(Icons.person), onPressed: () {}),
+          IconButton(
+            icon: Icon(Icons.person),
+            color: Colors.black87,
+            onPressed: () {},
+          ),
         ],
+        bottom: _buildAppBarFilter(),
       ),
       drawer: CustomDrawer(),
       body: Padding(
@@ -482,6 +437,13 @@ class _Menu2PageState extends State<Menu2Page> {
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: isLoading
                       ? Center(child: CircularProgressIndicator())
+                      : (errorMessage != null && filteredData.isEmpty)
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Text(errorMessage!),
+                          ),
+                        )
                       : DataTable(
                           sortColumnIndex: _sortColumnIndex,
                           sortAscending: _sortAscending,
@@ -599,6 +561,158 @@ class _Menu2PageState extends State<Menu2Page> {
           },
         ),
       ),
+    );
+  }
+
+  Future<void> _selectDate(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
+    DateTime initialDate = DateTime.now();
+    if (controller.text.isNotEmpty) {
+      initialDate = DateTime.tryParse(controller.text) ?? DateTime.now();
+    }
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null) {
+      setState(() {
+        controller.text = DateFormat('yyyy-MM-dd').format(picked);
+      });
+    }
+  }
+
+  PreferredSizeWidget _buildAppBarFilter() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    bool isNarrow = screenWidth < 450;
+    double preferredHeight = isNarrow ? 120.0 : 70.0;
+
+    return PreferredSize(
+      preferredSize: Size.fromHeight(preferredHeight),
+      child: Container(
+        color: Colors.grey[200],
+        padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
+        child: isNarrow ? _buildNarrowFilter() : _buildWideFilter(),
+      ),
+    );
+  }
+
+  Widget _buildWideFilter() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: _buildApiTanggalAwalField()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildApiTanggalAkhirField()),
+        const SizedBox(width: 8),
+        _buildAmbilDataButton(),
+      ],
+    );
+  }
+
+  Widget _buildNarrowFilter() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _buildApiTanggalAwalField()),
+            const SizedBox(width: 12),
+            Expanded(child: _buildApiTanggalAkhirField()),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(width: double.infinity, child: _buildAmbilDataButton()),
+      ],
+    );
+  }
+
+  Widget _buildApiTanggalAwalField() {
+    return TextField(
+      controller: apiTanggalAwalController,
+      readOnly: true,
+      style: TextStyle(color: Colors.black87, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: 'Tanggal Awal',
+        labelStyle: TextStyle(color: Colors.grey[700], fontSize: 12),
+        suffixIcon: Icon(
+          Icons.calendar_today,
+          color: Colors.grey[700],
+          size: 20,
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        isDense: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
+            width: 2.0,
+          ),
+        ),
+      ),
+      onTap: () => _selectDate(context, apiTanggalAwalController),
+    );
+  }
+
+  Widget _buildApiTanggalAkhirField() {
+    return TextField(
+      controller: apiTanggalAkhirController,
+      readOnly: true,
+      style: TextStyle(color: Colors.black87, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: 'Tanggal Akhir',
+        labelStyle: TextStyle(color: Colors.grey[700], fontSize: 12),
+        suffixIcon: Icon(
+          Icons.calendar_today,
+          color: Colors.grey[700],
+          size: 20,
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        isDense: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
+            width: 2.0,
+          ),
+        ),
+      ),
+      onTap: () => _selectDate(context, apiTanggalAkhirController),
+    );
+  }
+
+  Widget _buildAmbilDataButton() {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        textStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+      ),
+      onPressed: isLoading ? null : fetchIncomingRM,
+      child: Text('Ambil Data'),
     );
   }
 }
