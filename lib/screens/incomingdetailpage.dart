@@ -116,7 +116,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
     );
 
     try {
@@ -342,7 +342,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final response = await http.post(
         Uri.parse(
-          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$fakturBaru',
+          'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$fakturBaru',
         ),
         headers: {
           'Authorization': 'Bearer $token',
@@ -473,7 +473,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
                       final response = await http.put(
                         Uri.parse(
-                          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
+                          'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
                         ),
                         headers: {
                           'Authorization': 'Bearer $token',
@@ -530,7 +530,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       try {
         final response = await http.delete(
           Uri.parse(
-            'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
+            'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
           ),
           headers: {'Authorization': 'Bearer $token'},
         );
@@ -600,7 +600,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -686,7 +686,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
 
     final url = Uri.parse(
-      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm"
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm"
       "?faktur=$faktur"
       "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
       "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
@@ -746,7 +746,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final uri = Uri.parse(
-        "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
+        "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
       );
       final request = http.MultipartRequest('PUT', uri);
 
@@ -801,7 +801,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final url = Uri.parse(
-      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$faktur",
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$faktur",
     );
     try {
       final response = await http.get(
@@ -855,7 +855,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
+      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
     );
 
     try {
@@ -1578,7 +1578,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
-      final url = Uri.parse("https://trial-api-gts-rm.scm-ppa.com/$imagePath");
+      final url = Uri.parse("https://api-gts-rm.scm-ppa.com/$imagePath");
 
       print("Fetching image: $url");
 

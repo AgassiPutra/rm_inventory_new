@@ -68,7 +68,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final String tanggalAkhir = formatter.format(nextDay);
 
     final url =
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
 
     try {
       final response = await http.get(

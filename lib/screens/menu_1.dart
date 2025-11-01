@@ -365,7 +365,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -446,7 +446,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -511,7 +511,7 @@ class _Menu1PageState extends State<Menu1Page> {
       return;
     }
     final apiEndpointFull =
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
     const apiEndpoint = 'gtsrm/api/incoming-rm';
 
     final Map<String, dynamic> requestFields = {
@@ -711,7 +711,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

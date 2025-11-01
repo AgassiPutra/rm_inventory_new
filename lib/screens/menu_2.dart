@@ -113,7 +113,7 @@ class _Menu2PageState extends State<Menu2Page> {
     }
 
     final url =
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?faktur=$faktur';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?faktur=$faktur';
 
     try {
       final response = await http.delete(
@@ -239,7 +239,7 @@ class _Menu2PageState extends State<Menu2Page> {
           : formatter.format(tomorrow);
 
       final url =
-          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+          'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
 
       print('Fetching URL: $url');
 
