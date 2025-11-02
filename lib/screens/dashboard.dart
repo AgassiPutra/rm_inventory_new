@@ -226,7 +226,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Scaffold(
       appBar: AppBar(
-        // AppBar UTAMA (PUTIH)
         backgroundColor: Colors.white,
         elevation: 2.0,
         iconTheme: IconThemeData(color: Colors.black87),
@@ -257,7 +256,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   },
           ),
         ],
-        // Filter diletakkan di 'bottom'
         bottom: _buildAppBarFilter(),
       ),
       drawer: CustomDrawer(),
@@ -271,7 +269,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 )
               : Column(
                   children: [
-                    // Judul Tanggal
                     Text(
                       'Tanggal: ${tanggalAwalController.text} - ${tanggalAkhirController.text}',
                       style: const TextStyle(
@@ -280,8 +277,6 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // BarChart (TIDAK DIUBAH)
                     SizedBox(
                       height: MediaQuery.of(context).size.width > 600
                           ? 300
@@ -335,8 +330,6 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // GridView (TIDAK DIUBAH)
                     GridView.count(
                       crossAxisCount: MediaQuery.of(context).size.width > 600
                           ? 6
@@ -356,29 +349,21 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // --- KUMPULAN FUNGSI HELPER UNTUK FILTER RESPONSif ---
-
-  // 1. Fungsi build utama
   PreferredSizeWidget _buildAppBarFilter() {
     final screenWidth = MediaQuery.of(context).size.width;
     bool isNarrow = screenWidth < 450;
-    // Sesuaikan tinggi: 120 untuk 2 baris (narrow), 70 untuk 1 baris (wide)
     double preferredHeight = isNarrow ? 120.0 : 70.0;
 
     return PreferredSize(
       preferredSize: Size.fromHeight(preferredHeight),
       child: Container(
-        // Warna DEDICATED abu-abu muda
         color: Colors.grey[200],
         padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
-        child: isNarrow
-            ? _buildNarrowFilter() // Layout Column untuk HP sempit
-            : _buildWideFilter(), // Layout Row untuk HP/tablet lebar
+        child: isNarrow ? _buildNarrowFilter() : _buildWideFilter(),
       ),
     );
   }
 
-  // 2. Widget untuk layout lebar (menyamping)
   Widget _buildWideFilter() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -387,12 +372,11 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(width: 12),
         Expanded(child: _buildTanggalAkhirField()),
         const SizedBox(width: 8),
-        _buildAmbilDataButton(), // Tombol di samping
+        _buildAmbilDataButton(),
       ],
     );
   }
 
-  // 3. Widget untuk layout sempit (ke bawah)
   Widget _buildNarrowFilter() {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -405,16 +389,11 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
         const SizedBox(height: 8),
-        // Buat tombol jadi lebar penuh
-        SizedBox(
-          width: double.infinity,
-          child: _buildAmbilDataButton(), // Tombol di bawah
-        ),
+        SizedBox(width: double.infinity, child: _buildAmbilDataButton()),
       ],
     );
   }
 
-  // 4. Helper: Field Tanggal Awal (Style Putih)
   Widget _buildTanggalAwalField() {
     return TextField(
       controller: tanggalAwalController,
@@ -433,7 +412,7 @@ class _DashboardPageState extends State<DashboardPage> {
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.0),
-          borderSide: BorderSide.none, // Hilangkan border
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.0),
@@ -451,7 +430,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // 5. Helper: Field Tanggal Akhir (Style Putih)
   Widget _buildTanggalAkhirField() {
     return TextField(
       controller: tanggalAkhirController,
@@ -470,7 +448,7 @@ class _DashboardPageState extends State<DashboardPage> {
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.0),
-          borderSide: BorderSide.none, // Hilangkan border
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8.0),
@@ -488,11 +466,9 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // 6. Helper: Tombol Ambil Data (Style Primer)
   Widget _buildAmbilDataButton() {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        // Style default (Warna Primer)
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         textStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
@@ -501,8 +477,6 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Text('Ambil Data'),
     );
   }
-
-  // --- WIDGET HELPER KATEGORI (TIDAK DIUBAH) ---
 
   Widget buildCategoryCard(String category, double total) {
     final icon = getIconForCategory(category);
