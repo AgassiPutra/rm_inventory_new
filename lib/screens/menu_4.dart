@@ -29,7 +29,7 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
   String? _selectedUnit;
   String? _selectedType;
 
-  final List<String> _unitOptions = ['CK1', 'CK2', 'CK3', 'Lainnya'];
+  final List<String> _unitOptions = ['CK1', 'CK2', 'CP3', 'Lainnya'];
   final List<String> _typeOptions = [
     'Wet Chicken',
     'Sayuran',
@@ -150,7 +150,7 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
     }
 
     final url =
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?faktur=$faktur';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?faktur=$faktur';
 
     try {
       final response = await http.delete(
@@ -252,18 +252,19 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
 
       final DateTime today = DateTime.now();
       final DateFormat formatter = DateFormat('yyyy-MM-dd');
-      final DateTime firstDayOfMonth = DateTime(today.year, today.month, 1);
+      final now = DateTime.now();
+      final firstDayOfPreviousMonth = DateTime(now.year, now.month - 1, 1);
       final DateTime tomorrow = today.add(const Duration(days: 1));
 
       final String tanggalAwal = tanggalAwalController.text.isNotEmpty
           ? tanggalAwalController.text
-          : formatter.format(firstDayOfMonth);
+          : formatter.format(firstDayOfPreviousMonth);
       final String tanggalAkhir = tanggalAkhirController.text.isNotEmpty
           ? tanggalAkhirController.text
           : formatter.format(tomorrow);
 
       final url =
-          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+          'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
 
       print('Fetching URL: $url');
 
@@ -557,7 +558,50 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
                                                   ),
                                                 ),
                                                 DataCell(
-                                                  Text(row['unit'] ?? ''),
+                                                  Builder(
+                                                    builder: (context) {
+                                                      final String unitText =
+                                                          (row['unit'] ?? '')
+                                                              .toString()
+                                                              .toUpperCase();
+                                                      return unitText.contains(
+                                                                'CK',
+                                                              ) ||
+                                                              unitText.contains(
+                                                                'CP',
+                                                              )
+                                                          ? Container(
+                                                              padding:
+                                                                  EdgeInsets.symmetric(
+                                                                    horizontal:
+                                                                        12,
+                                                                    vertical: 6,
+                                                                  ),
+                                                              decoration: BoxDecoration(
+                                                                color: Colors
+                                                                    .blue[100],
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      8,
+                                                                    ),
+                                                              ),
+                                                              child: Text(
+                                                                row['unit'] ??
+                                                                    '',
+                                                                style: TextStyle(
+                                                                  color: Colors
+                                                                      .blue[900],
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                              ),
+                                                            )
+                                                          : Text(
+                                                              row['unit'] ?? '',
+                                                            );
+                                                    },
+                                                  ),
                                                 ),
                                                 DataCell(
                                                   Text(row['jenis_rm'] ?? ''),
