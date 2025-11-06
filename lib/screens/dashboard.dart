@@ -37,17 +37,13 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
-
-    // Set tanggal default (1 bulan lalu s/d 1 bulan ini)
     final now = DateTime.now();
-    final firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
     final firstDayOfPreviousMonth = DateTime(now.year, now.month - 1, 1);
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
 
     tanggalAwalController.text = formatter.format(firstDayOfPreviousMonth);
-    tanggalAkhirController.text = formatter.format(firstDayOfCurrentMonth);
+    tanggalAkhirController.text = formatter.format(now);
 
-    // Panggil API dengan tanggal default
     fetchDataFromAPI();
     Auth.check(context);
   }
@@ -95,7 +91,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     const String baseUrl =
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
 
     final Map<String, String> queryParams = {'lokasi_unit': lokasiUnit};
 

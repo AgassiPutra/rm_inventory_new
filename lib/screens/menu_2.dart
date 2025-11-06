@@ -487,30 +487,35 @@ class _Menu2PageState extends State<Menu2Page> {
                               cells: [
                                 DataCell(Text(row['faktur'] ?? '')),
                                 DataCell(
-                                  (row['unit'] ?? '')
-                                          .toString()
-                                          .toUpperCase()
-                                          .contains('CK')
-                                      ? Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue[100],
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            row['unit'] ?? '',
-                                            style: TextStyle(
-                                              color: Colors.blue[900],
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        )
-                                      : Text(row['unit'] ?? ''),
+                                  Builder(
+                                    builder: (context) {
+                                      final String unitText =
+                                          (row['unit'] ?? '')
+                                              .toString()
+                                              .toUpperCase();
+                                      return unitText.contains('CK') ||
+                                              unitText.contains('CP')
+                                          ? Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 6,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue[100],
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                row['unit'] ?? '',
+                                                style: TextStyle(
+                                                  color: Colors.blue[900],
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            )
+                                          : Text(row['unit'] ?? '');
+                                    },
+                                  ),
                                 ),
                                 DataCell(Text(row['jenis_rm'] ?? '')),
                                 DataCell(Text(row['supplier'] ?? '')),
