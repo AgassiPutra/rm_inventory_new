@@ -95,7 +95,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     const String baseUrl =
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
 
     final Map<String, String> queryParams = {'lokasi_unit': lokasiUnit};
 
@@ -124,7 +124,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
-        final List<dynamic> dataList = decoded['data'];
+        final List<dynamic> dataList = decoded['data'] ?? [];
 
         setState(() {
           allData = dataList
@@ -212,11 +212,18 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Map<String, double> calculateTotalByCategory(List<IncomingData> dataList) {
-    Map<String, double> totals = {};
+    Map<String, double> totals = {
+      for (var key in categoryColors.keys) key: 0.0,
+    };
     for (var data in dataList) {
       totals[data.jenisRm] = (totals[data.jenisRm] ?? 0) + data.qtyIn;
     }
     return totals;
+    // Map<String, double> totals = {};
+    // for (var data in dataList) {
+    //   totals[data.jenisRm] = (totals[data.jenisRm] ?? 0) + data.qtyIn;
+    // }
+    // return totals;
   }
 
   @override
@@ -345,8 +352,9 @@ class _DashboardPageState extends State<DashboardPage> {
                       mainAxisSpacing: 12,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      children: totals.entries.map((entry) {
-                        return buildCategoryCard(entry.key, entry.value);
+                      children: categories.map((category) {
+                        final total = totals[category] ?? 0.0;
+                        return buildCategoryCard(category, total);
                       }).toList(),
                     ),
                   ],

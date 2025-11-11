@@ -246,7 +246,7 @@ class _Menu2PageState extends State<Menu2Page> {
       }
 
       const String baseUrl =
-          'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+          'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
 
       final Map<String, String> queryParams = {'lokasi_unit': lokasiUnit};
       final String tanggalAwal = apiTanggalAwalController.text.trim();

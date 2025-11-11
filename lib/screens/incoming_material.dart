@@ -374,7 +374,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -455,7 +455,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -520,7 +520,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
       return;
     }
     final apiEndpointFull =
-        'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
+        'https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm';
     const apiEndpoint = 'gtsrm/api/incoming-rm';
 
     final Map<String, dynamic> requestFields = {
@@ -732,9 +732,9 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
       "type_rm": selectedTipeRM,
     };
 
-    try {
+    try {                                                                                                                                                                                                                                                                       
       final response = await http.post(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

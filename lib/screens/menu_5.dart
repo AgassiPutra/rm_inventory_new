@@ -145,7 +145,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
 
     try {
       final res = await http.get(
-        Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -350,7 +350,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
 
       try {
         final res = await http.post(
-          Uri.parse('https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
+          Uri.parse('https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier'),
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/json',
@@ -637,7 +637,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
       try {
         final res = await http.put(
           Uri.parse(
-            'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier?kode_supplier=${_kodeSupplierC.text.trim()}',
+            'https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier?kode_supplier=${_kodeSupplierC.text.trim()}',
           ),
           headers: {
             'Authorization': 'Bearer $token',
@@ -887,7 +887,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
 
   Future<void> deleteSupplier(BuildContext context, String kodeSupplier) async {
     final url = Uri.parse(
-      'https://trial-api-gts-rm.scm-ppa.com/gtsrm/api/supplier?kode_supplier=$kodeSupplier',
+      'https://api-gts-rm.scm-ppa.com/gtsrm/api/supplier?kode_supplier=$kodeSupplier',
     );
     final token = await getToken();
 
