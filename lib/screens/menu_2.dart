@@ -271,7 +271,7 @@ class _Menu2PageState extends State<Menu2Page> {
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        final List<dynamic> items = jsonData['data'];
+        final List<dynamic> items = jsonData['data'] ?? [];
 
         setState(() {
           data = items
