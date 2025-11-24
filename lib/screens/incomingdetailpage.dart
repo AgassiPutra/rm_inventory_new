@@ -918,26 +918,26 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       final item = scaleData[i];
       String date = '';
       String time = '';
-      if (item['date_time'] != null &&
-          item['date_time'].toString().contains(',')) {
-        final parts = item['date_time'].toString().split(',');
+      if (item['date_time_entry'] != null &&
+          item['date_time_entry'].toString().contains(',')) {
+        final parts = item['date_time_entry'].toString().split(',');
         if (parts.length == 2) {
           date = parts[0].trim();
           time = parts[1].trim();
         } else {
-          date = item['date_time'].toString();
+          date = item['date_time_entry'].toString();
         }
-      } else if (item['date_time'] != null &&
-          item['date_time'].toString().contains(' ')) {
-        final parts = item['date_time'].toString().split(' ');
+      } else if (item['date_time_entry'] != null &&
+          item['date_time_entry'].toString().contains(' ')) {
+        final parts = item['date_time_entry'].toString().split(' ');
         if (parts.length == 2) {
           date = parts[0].trim();
           time = parts[1].trim();
         } else {
-          date = item['date_time'].toString();
+          date = item['date_time_entry'].toString();
         }
       } else {
-        date = item['date_time']?.toString() ?? '';
+        date = item['date_time_entry']?.toString() ?? '';
       }
       return [
         '${i + 1}',
@@ -1042,7 +1042,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 return [
                   '${i + 1}',
                   item['weight']?.toString() ?? '',
-                  item['date_time']?.toString() ?? '',
+                  item['date_time_entry']?.toString() ?? '',
                   item['type_rm']?.toString() ?? '',
                   item['status']?.toString() ?? '',
                   _userEntry,
