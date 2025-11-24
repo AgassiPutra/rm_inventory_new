@@ -77,6 +77,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   bool isReceivingWeight = false;
   late TextEditingController qtyPoController;
   String? _userRole;
+  int _currentPageScale = 1;
+  final int _pageSizeScale = 10;
+  int get _totalScaleItems => scaleData.length;
+  int get _totalScalePages => (_totalScaleItems / _pageSizeScale).ceil();
 
   String? selectedStatusPenerimaan;
   String? selectedTipeRM;
@@ -831,6 +835,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         setState(() {
           scaleData = flatList;
           isLoading = false;
+          _currentPageScale = 1;
         });
       } else {
         setState(() => isLoading = false);
@@ -1090,6 +1095,54 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   String _formatDateTime(DateTime dt) =>
       '${dt.day} ${_monthName(dt.month)} ${dt.year}, ${_formatTime(dt)}';
+  Widget _buildScalePaginationControls() {
+    if (_totalScaleItems <= _pageSizeScale) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Halaman $_currentPageScale dari $_totalScalePages',
+            style: const TextStyle(fontSize: 14, color: Colors.black54),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: _currentPageScale > 1
+                    ? () {
+                        setState(() {
+                          _currentPageScale--;
+                        });
+                      }
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: _currentPageScale < _totalScalePages
+                    ? () {
+                        setState(() {
+                          _currentPageScale++;
+                        });
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2029,6 +2082,13 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
   }
 
   Widget _buildScaleHistorySection(double totalWeight) {
+    final startIndex = (_currentPageScale - 1) * _pageSizeScale;
+    final endIndex = (_currentPageScale * _pageSizeScale).clamp(
+      0,
+      scaleData.length,
+    );
+    final currentPageData = scaleData.sublist(startIndex, endIndex);
+
     return _buildSection(
       title: 'Riwayat Data Timbangan',
       children: [
@@ -2045,13 +2105,15 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                     Colors.green.shade100,
                   ),
                   _buildInfoBadge(
-                    "Penimbangan: ${scaleData.length} kali",
+                    "Penimbangan: ${_totalScaleItems} kali",
                     Colors.green.shade100,
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               const Divider(),
+              _buildScalePaginationControls(),
+
               if (scaleData.isEmpty)
                 Container(
                   width: double.infinity,
@@ -2071,7 +2133,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   ),
                 )
               else
-                ...scaleData.map((item) {
+                ...currentPageData.map((item) {
                   final id = item['id']?.toString();
                   final typeRm = item['type_rm'] ?? 'Unknown RM';
                   final weight = item['weight'] ?? 0;
@@ -2079,7 +2141,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   final dateTime = item['date_time_entry'] ?? '';
 
                   return Card(
-                    margin: EdgeInsets.symmetric(vertical: 4),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
                     child: ListTile(
                       leading: Icon(
                         status.toString().toLowerCase() == 'retur'
@@ -2099,11 +2161,17 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: Icon(Icons.edit, color: Colors.blue),
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
                                   onPressed: () => _editTimbangan(item),
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.delete, color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
                                   onPressed: () => _deleteTimbangan(id!),
                                 ),
                               ],
@@ -2112,6 +2180,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                     ),
                   );
                 }).toList(),
+              _buildScalePaginationControls(),
             ],
           ),
       ],
