@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_drawer.dart';
 import 'login.dart';
 import '../utils/auth.dart';
+import 'package:flutter/material.dart';
 
 class Menu3Page extends StatefulWidget {
   @override
@@ -12,14 +13,41 @@ class Menu3Page extends StatefulWidget {
 }
 
 class _Menu3PageState extends State<Menu3Page> {
-  List<dynamic> suppliers = [];
+  List<dynamic> allSuppliers = [];
+  List<dynamic> filteredSuppliers = [];
+  List<dynamic> currentSuppliers = [];
   bool isLoading = true;
+  int currentPage = 1;
+  int pageSize = 10;
+  int totalPages = 1;
+  final TextEditingController _searchController = TextEditingController();
+  String? _filterJenisRm;
+
+  final List<String> jenisRmOptions = const [
+    'WET CHICKEN',
+    'DRY',
+    'SAYURAN',
+    'ICE',
+    'UDANG',
+  ];
 
   @override
   void initState() {
     super.initState();
     fetchSuppliers();
     Auth.check(context);
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _filterSuppliers();
   }
 
   Future<String?> getToken() async {
@@ -28,7 +56,10 @@ class _Menu3PageState extends State<Menu3Page> {
   }
 
   Future<void> fetchSuppliers() async {
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      currentPage = 1;
+    });
 
     final prefs = await SharedPreferences.getInstance();
     final token = await getToken() ?? '';
@@ -61,10 +92,12 @@ class _Menu3PageState extends State<Menu3Page> {
 
       if (res.statusCode == 200) {
         final jsonRes = json.decode(res.body) as Map<String, dynamic>;
+
         setState(() {
-          suppliers = (jsonRes['data'] ?? []) as List<dynamic>;
+          allSuppliers = (jsonRes['data'] ?? []) as List<dynamic>;
           isLoading = false;
         });
+        _filterSuppliers();
       } else {
         setState(() => isLoading = false);
         if (!mounted) return;
@@ -83,14 +116,46 @@ class _Menu3PageState extends State<Menu3Page> {
     }
   }
 
-  Future<void> _openAddSupplier() async {
-    final created = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const AddSupplierPage()),
-    );
-    if (created == true) {
-      fetchSuppliers();
+  void _filterSuppliers() {
+    final query = _searchController.text.toLowerCase().trim();
+    final filterRm = _filterJenisRm;
+    filteredSuppliers = allSuppliers.where((supplier) {
+      final supplierName = (supplier['supplier'] as String? ?? '')
+          .toLowerCase();
+      final jenisRm = supplier['jenis_rm'] as String? ?? '';
+      final matchesQuery = query.isEmpty || supplierName.contains(query);
+      final matchesJenisRm =
+          filterRm == null || filterRm.isEmpty || jenisRm == filterRm;
+
+      return matchesQuery && matchesJenisRm;
+    }).toList();
+
+    totalPages = (filteredSuppliers.length / pageSize).ceil();
+    if (totalPages == 0 && filteredSuppliers.isNotEmpty) {
+      totalPages = 1;
+    } else if (filteredSuppliers.isEmpty) {
+      totalPages = 1;
     }
+
+    if (currentPage > totalPages) {
+      currentPage = totalPages > 0 ? totalPages : 1;
+    }
+    _updateCurrentPageData();
+    setState(() {});
+  }
+
+  void _updateCurrentPageData() {
+    final start = (currentPage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, filteredSuppliers.length);
+    currentSuppliers = filteredSuppliers.sublist(start, end);
+  }
+
+  void _goToPage(int page) {
+    if (page < 1 || page > totalPages) return;
+    setState(() {
+      currentPage = page;
+      _updateCurrentPageData();
+    });
   }
 
   Future<void> showSupplierForm({Map<String, dynamic>? data}) async {
@@ -102,7 +167,7 @@ class _Menu3PageState extends State<Menu3Page> {
     String? jenisRm = data?['jenis_rm'] as String?;
     String? jenisAyam = data?['jenis_ayam'] as String?;
     String? satuan = data?['satuan'] as String?;
-    const jenisRmOptions = ['WET CHICKEN', 'DRY', 'SAYURAN', 'ICE'];
+    const jenisRmOptionsLocal = ['WET CHICKEN', 'DRY', 'SAYURAN', 'ICE'];
     const jenisAyamOptions = ['FRESH WET CHICKEN', 'FROZEN CHICKEN', 'OTHER'];
     const satuanOptions = ['Kg', 'Karton', 'Bak', 'Pack', 'Jerrycan'];
 
@@ -121,8 +186,10 @@ class _Menu3PageState extends State<Menu3Page> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: jenisRmOptions.contains(jenisRm) ? jenisRm : null,
-                      items: jenisRmOptions
+                      value: jenisRmOptionsLocal.contains(jenisRm)
+                          ? jenisRm
+                          : null,
+                      items: jenisRmOptionsLocal
                           .map(
                             (e) => DropdownMenuItem(value: e, child: Text(e)),
                           )
@@ -312,6 +379,12 @@ class _Menu3PageState extends State<Menu3Page> {
       return;
     }
 
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
       final response = await http.delete(
         url,
@@ -332,13 +405,17 @@ class _Menu3PageState extends State<Menu3Page> {
         );
         fetchSuppliers();
       } else {
-        // print('Status Code: ${response.statusCode}');
-        // print('Response Body: ${response.body}');
+        String msg = 'Gagal menghapus: (${response.statusCode})';
+        try {
+          final m = jsonDecode(response.body);
+          if (m is Map && m['message'] is String) {
+            msg = 'Gagal menghapus: ${m['message']} (${response.statusCode})';
+          }
+        } catch (_) {
+          msg = 'Gagal menghapus: ${response.body} (${response.statusCode})';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus: ${response.body}'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -369,92 +446,233 @@ class _Menu3PageState extends State<Menu3Page> {
         padding: const EdgeInsets.all(8.0),
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
-                        ),
-                        child: DataTable(
-                          columnSpacing: 24,
-                          headingRowColor: MaterialStateProperty.all(
-                            Colors.grey[100],
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _searchController,
+                            decoration: const InputDecoration(
+                              labelText: 'Cari Supplier...',
+                              prefixIcon: Icon(Icons.search),
+                              border: OutlineInputBorder(),
+                            ),
                           ),
-                          columns: const [
-                            DataColumn(label: Text('Supplier')),
-                            DataColumn(label: Text('Produsen')),
-                            DataColumn(label: Text('Jenis')),
-                            DataColumn(label: Text('Actions')),
-                          ],
-                          rows: suppliers.map((data) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text(data['supplier'] ?? '')),
-                                DataCell(Text(data['nama_pabrik'] ?? '')),
-                                DataCell(Text(data['jenis_rm'] ?? '')),
-                                DataCell(
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit, size: 18),
-                                        onPressed: () =>
-                                            showSupplierForm(data: data),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          size: 18,
-                                          color: Colors.red,
-                                        ),
-                                        onPressed: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (ctx) => AlertDialog(
-                                              title: const Text('Konfirmasi'),
-                                              content: const Text(
-                                                'Yakin ingin menghapus supplier ini?',
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 200,
+                          child: DropdownButtonFormField<String>(
+                            value: _filterJenisRm,
+                            items: [
+                              const DropdownMenuItem(
+                                value: null,
+                                child: Text('Semua Jenis'),
+                              ),
+                              ...jenisRmOptions
+                                  .map(
+                                    (e) => DropdownMenuItem(
+                                      value: e,
+                                      child: Text(e),
+                                    ),
+                                  )
+                                  .toList(),
+                            ],
+                            onChanged: (v) {
+                              setState(() {
+                                _filterJenisRm = v;
+                                currentPage = 1;
+                              });
+                              _filterSuppliers();
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Jenis RM',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        if (filteredSuppliers.isEmpty && !isLoading) {
+                          return const Center(
+                            child: Text(
+                              'Tidak ada data supplier yang cocok dengan kriteria.',
+                            ),
+                          );
+                        }
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minWidth: constraints.maxWidth,
+                              ),
+                              child: DataTable(
+                                columnSpacing: 24,
+                                headingRowColor: MaterialStateProperty.all(
+                                  Colors.grey[100],
+                                ),
+                                columns: const [
+                                  DataColumn(label: Text('Supplier')),
+                                  DataColumn(label: Text('Produsen')),
+                                  DataColumn(label: Text('Jenis')),
+                                  DataColumn(label: Text('Actions')),
+                                ],
+                                rows: currentSuppliers.map((data) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(data['supplier'] ?? '')),
+                                      DataCell(Text(data['nama_pabrik'] ?? '')),
+                                      DataCell(Text(data['jenis_rm'] ?? '')),
+                                      DataCell(
+                                        Row(
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 18,
                                               ),
-                                              actions: [
-                                                TextButton(
-                                                  child: const Text('Batal'),
-                                                  onPressed: () =>
-                                                      Navigator.of(ctx).pop(),
-                                                ),
-                                                TextButton(
-                                                  child: const Text('Hapus'),
-                                                  onPressed: () {
-                                                    deleteSupplier(
-                                                      context,
-                                                      data['kode_supplier'],
-                                                    );
-                                                  },
-                                                ),
-                                              ],
+                                              onPressed: () =>
+                                                  showSupplierForm(data: data),
                                             ),
-                                          );
-                                        },
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                size: 18,
+                                                color: Colors.red,
+                                              ),
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (ctx) => AlertDialog(
+                                                    title: const Text(
+                                                      'Konfirmasi',
+                                                    ),
+                                                    content: const Text(
+                                                      'Yakin ingin menghapus supplier ini?',
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        child: const Text(
+                                                          'Batal',
+                                                        ),
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              ctx,
+                                                            ).pop(),
+                                                      ),
+                                                      TextButton(
+                                                        child: const Text(
+                                                          'Hapus',
+                                                        ),
+                                                        onPressed: () {
+                                                          Navigator.of(
+                                                            ctx,
+                                                          ).pop();
+                                                          deleteSupplier(
+                                                            context,
+                                                            data['kode_supplier'],
+                                                          );
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
-                                  ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (totalPages > 1)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: currentPage > 1
+                                ? () => _goToPage(currentPage - 1)
+                                : null,
+                          ),
+                          ...List.generate(totalPages, (index) {
+                            int pageNum = index + 1;
+                            if (pageNum == 1 ||
+                                pageNum == totalPages ||
+                                (pageNum >= currentPage - 2 &&
+                                    pageNum <= currentPage + 2)) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4.0,
                                 ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
+                                child: ChoiceChip(
+                                  label: Text('$pageNum'),
+                                  selected: pageNum == currentPage,
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      _goToPage(pageNum);
+                                    }
+                                  },
+                                ),
+                              );
+                            } else if ((pageNum == currentPage - 3 &&
+                                    currentPage > 3) ||
+                                (pageNum == currentPage + 3 &&
+                                    currentPage < totalPages - 2)) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4.0),
+                                child: Text('...'),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }).where((widget) => widget is! SizedBox).toList(),
+
+                          IconButton(
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: currentPage < totalPages
+                                ? () => _goToPage(currentPage + 1)
+                                : null,
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
+                ],
               ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.purple[100],
         child: const Icon(Icons.add, color: Colors.purple),
-        onPressed: _openAddSupplier,
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const AddSupplierPage()),
+          );
+          if (created == true) {
+            fetchSuppliers();
+          }
+        },
       ),
     );
   }
@@ -462,7 +680,6 @@ class _Menu3PageState extends State<Menu3Page> {
 
 class AddSupplierPage extends StatefulWidget {
   const AddSupplierPage({super.key});
-
   @override
   State<AddSupplierPage> createState() => _AddSupplierPageState();
 }
