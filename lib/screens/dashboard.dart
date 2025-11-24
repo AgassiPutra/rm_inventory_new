@@ -6,10 +6,24 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:csv/csv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:rm_inventory_new/utils/auth.dart';
+import 'package:rm_inventory_new/widgets/custom_drawer.dart';
 import '../models/incoming_data.dart';
-import '../widgets/custom_drawer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/auth.dart';
+
+class IncomingData {
+  final String jenisRm;
+  final double qtyIn;
+
+  IncomingData({required this.jenisRm, required this.qtyIn});
+
+  factory IncomingData.fromJson(Map<String, dynamic> json) {
+    return IncomingData(
+      jenisRm: json['jenis_rm'] ?? 'Unknown',
+      qtyIn: (json['qty_in'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -19,7 +33,6 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final tanggalAwalController = TextEditingController();
   final tanggalAkhirController = TextEditingController();
-
   final Map<String, Color> categoryColors = {
     'Wet Chicken Dada': Colors.red,
     'Wet Chicken Paha': Colors.orange,
@@ -27,6 +40,10 @@ class _DashboardPageState extends State<DashboardPage> {
     'Udang': Colors.pink,
     'Dry': Colors.brown,
     'Ice': Colors.blue,
+    'WET CHICKEN': Colors.red.shade700,
+    'SAYURAN': Colors.green.shade700,
+    'WET CHICKEN DADA': Colors.red.shade900,
+    'WET CHICKEN PAHA': Colors.orange.shade700,
   };
 
   List<IncomingData> allData = [];
@@ -152,6 +169,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> exportToCSV(Map<String, double> totals) async {
     try {
+      setState(() => isExporting = true);
       List<List<dynamic>> rows = [
         ["Kategori", "Total (kg)"],
       ];
@@ -180,6 +198,8 @@ class _DashboardPageState extends State<DashboardPage> {
           context,
         ).showSnackBar(SnackBar(content: Text('Gagal export CSV: $e')));
       }
+    } finally {
+      setState(() => isExporting = false);
     }
   }
 
@@ -207,18 +227,13 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Map<String, double> calculateTotalByCategory(List<IncomingData> dataList) {
-    Map<String, double> totals = {
-      for (var key in categoryColors.keys) key: 0.0,
-    };
+    Map<String, double> totals = {};
     for (var data in dataList) {
       totals[data.jenisRm] = (totals[data.jenisRm] ?? 0) + data.qtyIn;
     }
+    totals.removeWhere((key, value) => value < 0.01);
+
     return totals;
-    // Map<String, double> totals = {};
-    // for (var data in dataList) {
-    //   totals[data.jenisRm] = (totals[data.jenisRm] ?? 0) + data.qtyIn;
-    // }
-    // return totals;
   }
 
   @override
@@ -252,9 +267,7 @@ class _DashboardPageState extends State<DashboardPage> {
             onPressed: isLoading || isExporting
                 ? null
                 : () async {
-                    setState(() => isExporting = true);
                     await exportToCSV(totals);
-                    setState(() => isExporting = false);
                   },
           ),
         ],
@@ -279,72 +292,95 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      height: MediaQuery.of(context).size.width > 600
-                          ? 300
-                          : 250,
-                      child: BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          barGroups: List.generate(categories.length, (index) {
-                            final category = categories[index];
-                            final color =
-                                categoryColors[category] ?? Colors.grey;
-                            return BarChartGroupData(
-                              x: index,
-                              barRods: [
-                                BarChartRodData(
-                                  toY: totals[category]!,
-                                  color: color,
-                                  width: 20,
-                                  borderRadius: BorderRadius.circular(4),
+                    if (totals.isEmpty)
+                      const Center(
+                        heightFactor: 5,
+                        child: Text(
+                          "Tidak ada data Incoming RM pada periode ini.",
+                        ),
+                      )
+                    else
+                      Column(
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.width > 600
+                                ? 300
+                                : 250,
+                            child: BarChart(
+                              BarChartData(
+                                alignment: BarChartAlignment.spaceAround,
+                                barGroups: List.generate(categories.length, (
+                                  index,
+                                ) {
+                                  final category = categories[index];
+                                  final color =
+                                      categoryColors.containsKey(category)
+                                      ? categoryColors[category]!
+                                      : Colors.grey;
+
+                                  return BarChartGroupData(
+                                    x: index,
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: totals[category]!,
+                                        color: color,
+                                        width: 20,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ],
+                                  );
+                                }),
+                                titlesData: FlTitlesData(
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 40,
+                                    ),
+                                  ),
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      getTitlesWidget: (value, meta) {
+                                        if (value.toInt() >= 0 &&
+                                            value.toInt() < categories.length) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 8.0,
+                                            ),
+                                            child: Text(
+                                              categories[value.toInt()],
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          );
+                                        }
+                                        return const SizedBox();
+                                      },
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            );
-                          }),
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 40,
-                              ),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  if (value.toInt() >= 0 &&
-                                      value.toInt() < categories.length) {
-                                    return Text(
-                                      categories[value.toInt()],
-                                      style: const TextStyle(fontSize: 10),
-                                      textAlign: TextAlign.center,
-                                    );
-                                  }
-                                  return const SizedBox();
-                                },
+                                borderData: FlBorderData(show: false),
+                                gridData: FlGridData(show: true),
                               ),
                             ),
                           ),
-                          borderData: FlBorderData(show: false),
-                          gridData: FlGridData(show: true),
-                        ),
+                          const SizedBox(height: 20),
+                          GridView.count(
+                            crossAxisCount:
+                                MediaQuery.of(context).size.width > 600 ? 6 : 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: categories.map((category) {
+                              final total = totals[category] ?? 0.0;
+                              return buildCategoryCard(category, total);
+                            }).toList(),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    GridView.count(
-                      crossAxisCount: MediaQuery.of(context).size.width > 600
-                          ? 6
-                          : 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: categories.map((category) {
-                        final total = totals[category] ?? 0.0;
-                        return buildCategoryCard(category, total);
-                      }).toList(),
-                    ),
                   ],
                 ),
         ),
@@ -510,18 +546,18 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   IconData getIconForCategory(String category) {
-    switch (category) {
-      case 'Wet Chicken Dada':
+    switch (category.toUpperCase()) {
+      case 'WET CHICKEN DADA':
+      case 'WET CHICKEN PAHA':
+      case 'WET CHICKEN':
+        return Icons.kebab_dining;
+      case 'SAYURAN':
+        return Icons.grass;
+      case 'UDANG':
         return Icons.set_meal;
-      case 'Wet Chicken Paha':
-        return Icons.restaurant;
-      case 'Sayuran':
-        return Icons.eco;
-      case 'Udang':
-        return Icons.rice_bowl;
-      case 'Dry':
-        return Icons.inventory_2;
-      case 'Ice':
+      case 'DRY':
+        return Icons.food_bank;
+      case 'ICE':
         return Icons.ac_unit;
       default:
         return Icons.category;
