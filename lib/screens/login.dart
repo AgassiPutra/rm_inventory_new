@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://api-gts-dryequipment.scm-ppa.com/gtsdry/api/login'),
+        Uri.parse('https://api-gts-dryequipment.miegacoan.id/gtsdry/api/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': emailController.text.trim(),
