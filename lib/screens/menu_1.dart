@@ -871,7 +871,7 @@ class _Menu1PageState extends State<Menu1Page> {
               ),
             ),
             SizedBox(height: 16),
-            if (connectedDevice != null) ...[
+            if (connectedDevice == null) ...[
               Card(
                 color: invoiceFile == null
                     ? Colors.red[100]
