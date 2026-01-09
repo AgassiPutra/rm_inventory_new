@@ -84,6 +84,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
   String? selectedStatusPenerimaan;
   String? selectedTipeRM;
+  String _numberFormat = 'decimal';
   final Map<String, List<String>> tipeRMOptions = {
     'WET CHICKEN': ['BONELESS DADA (BLD)', 'BONELESS PAHA KULIT (BLPK)'],
     'SAYURAN': ['WORTEL', 'BAWANG', 'JAMUR'],
@@ -905,6 +906,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       '_',
     );
     final fileName = 'report_${safeFaktur}_${safeSupplier}.csv';
+
     final headers = [
       'No',
       'Weight (kg)',
@@ -914,10 +916,12 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       'Status',
       'User',
     ];
+
     final rows = List.generate(scaleData.length, (i) {
       final item = scaleData[i];
       String date = '';
       String time = '';
+
       if (item['date_time_entry'] != null &&
           item['date_time_entry'].toString().contains(',')) {
         final parts = item['date_time_entry'].toString().split(',');
@@ -939,9 +943,17 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       } else {
         date = item['date_time_entry']?.toString() ?? '';
       }
+      String weightStr = item['weight']?.toString() ?? '';
+      if (_numberFormat == 'rounded' && weightStr.isNotEmpty) {
+        final weight = double.tryParse(weightStr);
+        if (weight != null) {
+          weightStr = weight.round().toString();
+        }
+      }
+
       return [
         '${i + 1}',
-        item['weight']?.toString() ?? '',
+        weightStr,
         date,
         time,
         item['type_rm']?.toString() ?? '',
@@ -949,6 +961,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         _userEntry,
       ];
     });
+
     final csvContent = StringBuffer();
     csvContent.writeln(headers.join(','));
     for (final row in rows) {
@@ -969,10 +982,12 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final safeFaktur = faktur.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     final safeSupplier = supplier.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     final fileName = 'report_${safeFaktur}_${safeSupplier}.pdf';
+
     pdfDoc.addPage(
       pw.MultiPage(
         build: (context) {
           List<pw.Widget> widgets = [];
+
           widgets.add(
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1027,6 +1042,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               ],
             ),
           );
+
           widgets.add(
             pw.Table.fromTextArray(
               headers: [
@@ -1039,9 +1055,17 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               ],
               data: List.generate(scaleData.length, (i) {
                 final item = scaleData[i];
+                String weightStr = item['weight']?.toString() ?? '';
+                if (_numberFormat == 'rounded' && weightStr.isNotEmpty) {
+                  final weight = double.tryParse(weightStr);
+                  if (weight != null) {
+                    weightStr = weight.round().toString();
+                  }
+                }
+
                 return [
                   '${i + 1}',
-                  item['weight']?.toString() ?? '',
+                  weightStr,
                   item['date_time_entry']?.toString() ?? '',
                   item['type_rm']?.toString() ?? '',
                   item['status']?.toString() ?? '',
@@ -1059,6 +1083,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               border: pw.TableBorder.all(color: PdfColors.grey400),
             ),
           );
+
           widgets.add(pw.SizedBox(height: 12));
           widgets.add(
             pw.Text(
@@ -1066,6 +1091,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
               style: pw.TextStyle(fontSize: 10),
             ),
           );
+
           return widgets;
         },
       ),
@@ -1680,91 +1706,48 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      ElevatedButton.icon(
-                        icon: Icon(Icons.file_download),
-                        label: Text('Export'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          minimumSize: Size(120, 36),
-                        ),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: Text('Export Data Timbangan'),
-                              content: Text('Pilih format export:'),
-                              actions: [
-                                TextButton.icon(
-                                  icon: Icon(Icons.file_download),
-                                  label: Text('CSV'),
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    exportScaleDataToCSV(scaleData);
-                                  },
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 150,
+                            child: DropdownButtonFormField<String>(
+                              value: _numberFormat,
+                              items: [
+                                DropdownMenuItem(
+                                  value: 'decimal',
+                                  child: Text('Desimal'),
                                 ),
-                                TextButton.icon(
-                                  icon: Icon(Icons.picture_as_pdf),
-                                  label: Text('PDF'),
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    final pdfDoc = pw.Document();
-                                    exportScaleDataToPDF(
-                                      scaleData: scaleData,
-                                      faktur: widget.data['faktur'] ?? '',
-                                      supplier: widget.data['supplier'] ?? '',
-                                      totalWeight: scaleData.fold<double>(
-                                        0,
-                                        (sum, item) =>
-                                            sum +
-                                            (item['weight'] is num
-                                                ? item['weight']
-                                                : double.tryParse(
-                                                        item['weight']
-                                                                ?.toString() ??
-                                                            '0',
-                                                      ) ??
-                                                      0),
-                                      ),
-                                      totalCount: scaleData.length,
-                                      pdfDoc: pdfDoc,
-                                    );
-                                  },
-                                ),
-                                TextButton(
-                                  child: Text('Batal'),
-                                  onPressed: () => Navigator.pop(ctx),
+                                DropdownMenuItem(
+                                  value: 'rounded',
+                                  child: Text('Bulat'),
                                 ),
                               ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _numberFormat = value);
+                                }
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'Format',
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  );
-                } else {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
+                          ),
+                          SizedBox(width: 8),
+                          ElevatedButton.icon(
                             icon: Icon(Icons.file_download),
                             label: Text('Export'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
-                              minimumSize: Size(double.infinity, 36),
+                              minimumSize: Size(120, 36),
                             ),
                             onPressed: () {
                               showDialog(
@@ -1819,6 +1802,123 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                               );
                             },
                           ),
+                        ],
+                      ),
+                    ],
+                  );
+                } else {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _numberFormat,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: 'decimal',
+                                    child: Text('Desimal'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'rounded',
+                                    child: Text('Bulat'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => _numberFormat = value);
+                                  }
+                                },
+                                decoration: InputDecoration(
+                                  labelText: 'Format Angka',
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: Icon(Icons.file_download),
+                                label: Text('Export'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: Size(double.infinity, 48),
+                                ),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: Text('Export Data Timbangan'),
+                                      content: Text('Pilih format export:'),
+                                      actions: [
+                                        TextButton.icon(
+                                          icon: Icon(Icons.file_download),
+                                          label: Text('CSV'),
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            exportScaleDataToCSV(scaleData);
+                                          },
+                                        ),
+                                        TextButton.icon(
+                                          icon: Icon(Icons.picture_as_pdf),
+                                          label: Text('PDF'),
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            final pdfDoc = pw.Document();
+                                            exportScaleDataToPDF(
+                                              scaleData: scaleData,
+                                              faktur:
+                                                  widget.data['faktur'] ?? '',
+                                              supplier:
+                                                  widget.data['supplier'] ?? '',
+                                              totalWeight: scaleData.fold<double>(
+                                                0,
+                                                (sum, item) =>
+                                                    sum +
+                                                    (item['weight'] is num
+                                                        ? item['weight']
+                                                        : double.tryParse(
+                                                                item['weight']
+                                                                        ?.toString() ??
+                                                                    '0',
+                                                              ) ??
+                                                              0),
+                                              ),
+                                              totalCount: scaleData.length,
+                                              pdfDoc: pdfDoc,
+                                            );
+                                          },
+                                        ),
+                                        TextButton(
+                                          child: Text('Batal'),
+                                          onPressed: () => Navigator.pop(ctx),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
