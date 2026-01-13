@@ -947,7 +947,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       if (_numberFormat == 'rounded' && weightStr.isNotEmpty) {
         final weight = double.tryParse(weightStr);
         if (weight != null) {
-          weightStr = weight.round().toString();
+          weightStr = weight.truncate().toString();
         }
       }
 
@@ -1059,7 +1059,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 if (_numberFormat == 'rounded' && weightStr.isNotEmpty) {
                   final weight = double.tryParse(weightStr);
                   if (weight != null) {
-                    weightStr = weight.round().toString();
+                    weightStr = weight.truncate().toString();
                   }
                 }
 
@@ -1069,7 +1069,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   item['date_time_entry']?.toString() ?? '',
                   item['type_rm']?.toString() ?? '',
                   item['status']?.toString() ?? '',
-                  _userEntry,
+                  removeEmailDomain(_userEntry),
                 ];
               }),
               headerStyle: pw.TextStyle(
@@ -1097,6 +1097,13 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       ),
     );
     downloadPdfWeb(pdfDoc, fileName: fileName);
+  }
+
+  String removeEmailDomain(String email) {
+    return email
+        .replaceAll(RegExp(r'@gmail.com$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'@miegacoan.id$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'@miegacoan.co.id$', caseSensitive: false), '');
   }
 
   String _monthName(int month) {
@@ -1777,16 +1784,21 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                                               widget.data['supplier'] ?? '',
                                           totalWeight: scaleData.fold<double>(
                                             0,
-                                            (sum, item) =>
-                                                sum +
-                                                (item['weight'] is num
-                                                    ? item['weight']
-                                                    : double.tryParse(
-                                                            item['weight']
-                                                                    ?.toString() ??
-                                                                '0',
-                                                          ) ??
-                                                          0),
+                                            (sum, item) {
+                                              double val = item['weight'] is num
+                                                  ? (item['weight'] as num)
+                                                        .toDouble()
+                                                  : double.tryParse(
+                                                          item['weight']
+                                                                  ?.toString() ??
+                                                              '0',
+                                                        ) ??
+                                                        0;
+                                              if (_numberFormat == 'rounded') {
+                                                val = val.truncateToDouble();
+                                              }
+                                              return sum + val;
+                                            },
                                           ),
                                           totalCount: scaleData.length,
                                           pdfDoc: pdfDoc,
@@ -1892,16 +1904,24 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                                                   widget.data['supplier'] ?? '',
                                               totalWeight: scaleData.fold<double>(
                                                 0,
-                                                (sum, item) =>
-                                                    sum +
-                                                    (item['weight'] is num
-                                                        ? item['weight']
-                                                        : double.tryParse(
-                                                                item['weight']
-                                                                        ?.toString() ??
-                                                                    '0',
-                                                              ) ??
-                                                              0),
+                                                (sum, item) {
+                                                  double val =
+                                                      item['weight'] is num
+                                                      ? (item['weight'] as num)
+                                                            .toDouble()
+                                                      : double.tryParse(
+                                                              item['weight']
+                                                                      ?.toString() ??
+                                                                  '0',
+                                                            ) ??
+                                                            0;
+                                                  if (_numberFormat ==
+                                                      'rounded') {
+                                                    val = val
+                                                        .truncateToDouble();
+                                                  }
+                                                  return sum + val;
+                                                },
                                               ),
                                               totalCount: scaleData.length,
                                               pdfDoc: pdfDoc,
