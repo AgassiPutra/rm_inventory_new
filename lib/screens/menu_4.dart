@@ -158,6 +158,8 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
         headers: {'Authorization': 'Bearer $token'},
       );
 
+      if (await Auth.handle401(context, response)) return;
+
       if (response.statusCode == 200 || response.statusCode == 204) {
         ScaffoldMessenger.of(
           context,
@@ -275,6 +277,11 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
 
       // print('Status code: ${response.statusCode}');
       // print('Response body: ${response.body}');
+
+      if (await Auth.handle401(context, response)) {
+        setState(() => isLoading = false);
+        return;
+      }
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);

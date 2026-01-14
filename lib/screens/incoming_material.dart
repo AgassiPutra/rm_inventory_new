@@ -382,6 +382,11 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
         body: jsonEncode(weightData),
       );
 
+      if (await Auth.handle401(context, response)) {
+        setState(() => isReceivingWeight = false);
+        return;
+      }
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showSnackBar(
           'Data timbangan ${weight.toStringAsFixed(2)} kg berhasil dikirim.',
@@ -461,6 +466,8 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
 
       print("Status code: ${response.statusCode}");
       print("Response body: ${response.body}");
+
+      if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -592,6 +599,11 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
     try {
       final response = await request.send();
       final resBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 401) {
+        await Auth.logout(context);
+        return;
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonRes = jsonDecode(resBody);
@@ -732,7 +744,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
       "type_rm": selectedTipeRM,
     };
 
-    try {                                                                                                                                                                                                                                                                       
+    try {
       final response = await http.post(
         Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
         headers: {

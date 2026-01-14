@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../db/hive_service.dart';
 import '../models/upload_queue.dart';
 import '../utils/file_manager.dart';
+import '../utils/auth.dart';
 
 class SyncService {
   static const String _baseUrl = 'https://api-gts-rm.miegacoan.id/';
@@ -134,6 +135,11 @@ class SyncService {
         body: item.requestBodyJson,
       );
 
+      if (response.statusCode == 401) {
+        await Auth.clearSession();
+        return false;
+      }
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return true;
       } else {
@@ -195,6 +201,12 @@ class SyncService {
     }
     try {
       final response = await request.send();
+
+      if (response.statusCode == 401) {
+        await Auth.clearSession();
+        return false;
+      }
+
       final resBody = await response.stream.bytesToString();
 
       if (response.statusCode >= 200 && response.statusCode < 300) {

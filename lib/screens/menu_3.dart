@@ -90,6 +90,8 @@ class _Menu3PageState extends State<Menu3Page> {
         },
       );
 
+      if (await Auth.handle401(context, res)) return;
+
       if (res.statusCode == 200) {
         final jsonRes = json.decode(res.body) as Map<String, dynamic>;
 
@@ -330,6 +332,8 @@ class _Menu3PageState extends State<Menu3Page> {
                     );
 
                     if (!mounted) return;
+                    if (await Auth.handle401(context, res)) return;
+
                     if (res.statusCode == 200 || res.statusCode == 201) {
                       Navigator.pop(context);
                       fetchSuppliers();
@@ -395,6 +399,8 @@ class _Menu3PageState extends State<Menu3Page> {
       );
 
       Navigator.of(context, rootNavigator: true).pop();
+
+      if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -756,6 +762,8 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
       );
 
       if (!mounted) return;
+      if (await Auth.handle401(context, res)) return;
+
       if (res.statusCode == 200 || res.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Supplier berhasil dibuat')),

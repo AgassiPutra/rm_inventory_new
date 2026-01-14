@@ -134,6 +134,11 @@ class _DashboardPageState extends State<DashboardPage> {
         },
       );
 
+      if (await Auth.handle401(context, response)) {
+        setState(() => isLoading = false);
+        return;
+      }
+
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
         final List<dynamic> dataList = decoded['data'] ?? [];
@@ -144,13 +149,6 @@ class _DashboardPageState extends State<DashboardPage> {
               .toList();
           isLoading = false;
         });
-      } else if (response.statusCode == 401) {
-        setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unauthorized: Token tidak valid atau expired'),
-          ),
-        );
       } else {
         setState(() => isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(

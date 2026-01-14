@@ -378,6 +378,11 @@ class _Menu1PageState extends State<Menu1Page> {
         body: jsonEncode(weightData),
       );
 
+      if (await Auth.handle401(context, response)) {
+        setState(() => isReceivingWeight = false);
+        return;
+      }
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showSnackBar(
           'Data timbangan ${weight.toStringAsFixed(2)} kg berhasil dikirim.',
@@ -457,6 +462,8 @@ class _Menu1PageState extends State<Menu1Page> {
 
       // print("Status code: ${response.statusCode}");
       // print("Response body: ${response.body}");
+
+      if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -588,6 +595,11 @@ class _Menu1PageState extends State<Menu1Page> {
     try {
       final response = await request.send();
       final resBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 401) {
+        await Auth.logout(context);
+        return;
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonRes = jsonDecode(resBody);
@@ -871,7 +883,7 @@ class _Menu1PageState extends State<Menu1Page> {
               ),
             ),
             SizedBox(height: 16),
-            if (connectedDevice == null) ...[
+            if (connectedDevice != null) ...[
               Card(
                 color: invoiceFile == null
                     ? Colors.red[100]

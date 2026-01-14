@@ -15,6 +15,7 @@ import '../ble/permission_handler.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:rm_inventory_new/utils/auth.dart';
 
 class IncomingDetailPage extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -137,6 +138,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       print(
         "Update Qty PO Response: ${response.statusCode} - ${response.body}",
       );
+
+      if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -356,6 +359,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         body: jsonEncode(weightData),
       );
 
+      if (await Auth.handle401(context, response)) return;
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Data timbangan berhasil dikirim')),
@@ -487,6 +492,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                         body: jsonEncode(bodyData),
                       );
 
+                      if (await Auth.handle401(context, response)) return;
+
                       if (response.statusCode == 200) {
                         _showSnackBar('Data timbangan berhasil diupdate');
                         fetchTimbangan(widget.data['faktur']);
@@ -539,6 +546,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           ),
           headers: {'Authorization': 'Bearer $token'},
         );
+
+        if (await Auth.handle401(context, response)) return;
 
         if (response.statusCode == 200) {
           ScaffoldMessenger.of(
@@ -612,6 +621,9 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         },
         body: jsonEncode(weightData),
       );
+
+      if (await Auth.handle401(context, response)) return;
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showSnackBar(
           'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',
@@ -706,6 +718,11 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         },
       );
 
+      if (await Auth.handle401(context, response)) {
+        setState(() => isLoading = false);
+        return;
+      }
+
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
 
@@ -785,6 +802,11 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       print("Response status: ${response.statusCode}");
       print("Response body: $respStr");
 
+      if (response.statusCode == 401) {
+        await Auth.logout(context);
+        return;
+      }
+
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(
           context,
@@ -816,6 +838,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           "Content-Type": "application/json",
         },
       );
+      if (await Auth.handle401(context, response)) {
+        setState(() => isLoading = false);
+        return;
+      }
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final List<dynamic> dataList = decoded['data'] ?? [];
@@ -876,6 +902,8 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
       print("Response status: ${response.statusCode}");
       print("Response body: ${response.body}");
+
+      if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1672,6 +1700,19 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         url,
         headers: {"Authorization": "Bearer $token"},
       );
+
+      if (response.statusCode == 401) {
+        // Cannot use context here easily as it is not passed or might be tricky in FutureBuilder
+        // But we can return null and let the UI handle it, or try to logout if we have context access.
+        // Actually Auth.handle401 needs context. This method is called from FutureBuilder.
+        // We might not be able to logout easily here without context.
+        // However, this method is inside _IncomingDetailPageState, so we have 'context'.
+        // But it is an async method.
+        if (mounted) {
+          Auth.logout(context);
+        }
+        return null;
+      }
 
       if (response.statusCode == 200) {
         return response.bodyBytes;

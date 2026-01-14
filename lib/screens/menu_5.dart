@@ -152,6 +152,8 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
         },
       );
 
+      if (await Auth.handle401(context, res)) return;
+
       if (res.statusCode == 200) {
         final jsonRes = json.decode(res.body) as Map<String, dynamic>;
         setState(() {
@@ -360,6 +362,8 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
         );
 
         if (!mounted) return false;
+        if (await Auth.handle401(context, res)) return false;
+
         if (res.statusCode == 200 || res.statusCode == 201) {
           await _showStatusDialog(
             isSuccess: true,
@@ -648,6 +652,8 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
         );
 
         if (!mounted) return false;
+        if (await Auth.handle401(context, res)) return false;
+
         if (res.statusCode == 200 || res.statusCode == 201) {
           await _showStatusDialog(
             isSuccess: true,
@@ -910,6 +916,8 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
       );
 
       Navigator.of(context, rootNavigator: true).pop();
+
+      if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200) {
         await _showStatusDialog(
