@@ -1702,12 +1702,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       );
 
       if (response.statusCode == 401) {
-        // Cannot use context here easily as it is not passed or might be tricky in FutureBuilder
-        // But we can return null and let the UI handle it, or try to logout if we have context access.
-        // Actually Auth.handle401 needs context. This method is called from FutureBuilder.
-        // We might not be able to logout easily here without context.
-        // However, this method is inside _IncomingDetailPageState, so we have 'context'.
-        // But it is an async method.
         if (mounted) {
           Auth.logout(context);
         }
