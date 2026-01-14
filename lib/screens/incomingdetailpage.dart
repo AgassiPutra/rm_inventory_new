@@ -121,7 +121,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
     );
 
     try {
@@ -347,7 +347,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final response = await http.post(
         Uri.parse(
-          'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$fakturBaru',
+          'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$fakturBaru',
         ),
         headers: {
           'Authorization': 'Bearer $token',
@@ -478,7 +478,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
                       final response = await http.put(
                         Uri.parse(
-                          'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
+                          'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?id=$id',
                         ),
                         headers: {
                           'Authorization': 'Bearer $token',
@@ -535,7 +535,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       try {
         final response = await http.delete(
           Uri.parse(
-            'https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?id=$id',
+            'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?id=$id',
           ),
           headers: {'Authorization': 'Bearer $token'},
         );
@@ -605,7 +605,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://api-gts-rm.scm-ppa.com/$apiEndpoint'),
+        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -691,7 +691,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
 
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm"
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm"
       "?faktur=$faktur"
       "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
       "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
@@ -751,7 +751,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final uri = Uri.parse(
-        "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
+        "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
       );
       final request = http.MultipartRequest('PUT', uri);
 
@@ -806,7 +806,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/timbangan?faktur=$faktur",
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$faktur",
     );
     try {
       final response = await http.get(
@@ -861,7 +861,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.scm-ppa.com/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
     );
 
     try {
@@ -947,7 +947,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       if (_numberFormat == 'rounded' && weightStr.isNotEmpty) {
         final weight = double.tryParse(weightStr);
         if (weight != null) {
-          weightStr = weight.round().toString();
+          weightStr = weight.truncate().toString();
         }
       }
 
@@ -1059,7 +1059,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 if (_numberFormat == 'rounded' && weightStr.isNotEmpty) {
                   final weight = double.tryParse(weightStr);
                   if (weight != null) {
-                    weightStr = weight.round().toString();
+                    weightStr = weight.truncate().toString();
                   }
                 }
 
@@ -1069,7 +1069,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                   item['date_time_entry']?.toString() ?? '',
                   item['type_rm']?.toString() ?? '',
                   item['status']?.toString() ?? '',
-                  _userEntry,
+                  removeEmailDomain(_userEntry),
                 ];
               }),
               headerStyle: pw.TextStyle(
@@ -1097,6 +1097,13 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       ),
     );
     downloadPdfWeb(pdfDoc, fileName: fileName);
+  }
+
+  String removeEmailDomain(String email) {
+    return email
+        .replaceAll(RegExp(r'@gmail.com$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'@miegacoan.id$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'@miegacoan.co.id$', caseSensitive: false), '');
   }
 
   String _monthName(int month) {
@@ -1657,7 +1664,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
-      final url = Uri.parse("https://api-gts-rm.scm-ppa.com/$imagePath");
+      final url = Uri.parse("https://api-gts-rm.miegacoan.id/$imagePath");
 
       print("Fetching image: $url");
 
@@ -1777,16 +1784,21 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                                               widget.data['supplier'] ?? '',
                                           totalWeight: scaleData.fold<double>(
                                             0,
-                                            (sum, item) =>
-                                                sum +
-                                                (item['weight'] is num
-                                                    ? item['weight']
-                                                    : double.tryParse(
-                                                            item['weight']
-                                                                    ?.toString() ??
-                                                                '0',
-                                                          ) ??
-                                                          0),
+                                            (sum, item) {
+                                              double val = item['weight'] is num
+                                                  ? (item['weight'] as num)
+                                                        .toDouble()
+                                                  : double.tryParse(
+                                                          item['weight']
+                                                                  ?.toString() ??
+                                                              '0',
+                                                        ) ??
+                                                        0;
+                                              if (_numberFormat == 'rounded') {
+                                                val = val.truncateToDouble();
+                                              }
+                                              return sum + val;
+                                            },
                                           ),
                                           totalCount: scaleData.length,
                                           pdfDoc: pdfDoc,
@@ -1892,16 +1904,24 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                                                   widget.data['supplier'] ?? '',
                                               totalWeight: scaleData.fold<double>(
                                                 0,
-                                                (sum, item) =>
-                                                    sum +
-                                                    (item['weight'] is num
-                                                        ? item['weight']
-                                                        : double.tryParse(
-                                                                item['weight']
-                                                                        ?.toString() ??
-                                                                    '0',
-                                                              ) ??
-                                                              0),
+                                                (sum, item) {
+                                                  double val =
+                                                      item['weight'] is num
+                                                      ? (item['weight'] as num)
+                                                            .toDouble()
+                                                      : double.tryParse(
+                                                              item['weight']
+                                                                      ?.toString() ??
+                                                                  '0',
+                                                            ) ??
+                                                            0;
+                                                  if (_numberFormat ==
+                                                      'rounded') {
+                                                    val = val
+                                                        .truncateToDouble();
+                                                  }
+                                                  return sum + val;
+                                                },
                                               ),
                                               totalCount: scaleData.length,
                                               pdfDoc: pdfDoc,
