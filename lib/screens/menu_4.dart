@@ -652,7 +652,12 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
                                                           userRole ==
                                                               'SUPERVISOR' ||
                                                           userRole ==
-                                                              'Supervisor')
+                                                              'Supervisor' ||
+                                                          userRole ==
+                                                              'Manager' ||
+                                                          userRole ==
+                                                              'MANAGER' ||
+                                                          userRole == 'manager')
                                                         IconButton(
                                                           icon: Icon(
                                                             Icons.delete,

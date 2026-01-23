@@ -548,7 +548,10 @@ class _Menu2PageState extends State<Menu2Page> {
                                       ),
                                       if (userRole == 'supervisor' ||
                                           userRole == 'SUPERVISOR' ||
-                                          userRole == 'Supervisor')
+                                          userRole == 'Supervisor' ||
+                                          userRole == 'Manager' ||
+                                          userRole == 'MANAGER' ||
+                                          userRole == 'manager')
                                         IconButton(
                                           icon: Icon(
                                             Icons.delete,

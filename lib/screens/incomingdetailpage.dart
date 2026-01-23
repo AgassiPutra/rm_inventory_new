@@ -2311,7 +2311,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                       trailing:
                           _userRole == 'supervisor' ||
                               _userRole == 'Supervisor' ||
-                              _userRole == 'SUPERVISOR' && id != null
+                              _userRole == 'SUPERVISOR' ||
+                              _userRole == 'Manager' ||
+                              _userRole == 'MANAGER' ||
+                              _userRole == 'manager' && id != null
                           ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
