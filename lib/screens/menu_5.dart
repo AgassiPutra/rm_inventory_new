@@ -947,25 +947,37 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'Master Supplier',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              Builder(
+                builder: (context) => IconButton(
+                  icon: Icon(Icons.menu, color: Colors.black87),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  tooltip: 'Open Menu',
                 ),
               ),
-              SizedBox(height: 4),
-              Text(
-                'Streamlines raw material data entry and review for better transparancy and efficiency.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Master Supplier',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Streamlines raw material data entry and review for better transparancy and efficiency.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
               ),
             ],
           ),

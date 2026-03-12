@@ -13,6 +13,7 @@ import 'screens/menu_5.dart';
 import 'screens/menu_6.dart';
 import 'screens/splash.dart';
 import 'screens/incoming_material.dart';
+import 'screens/add_new_incoming.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -50,10 +51,11 @@ class MyApp extends StatelessWidget {
         '/login': (context) => LoginPage(),
         '/dashboard': (context) => DashboardPage(),
         '/incoming-material': (context) => Menu1Page(),
-        '/menu2': (context) => Menu2Page(),
-        '/menu3': (context) => Menu3Page(),
-        // '/incoming-management': (context) => IncomingManagementPage(),
-        // '/master-supplier': (context) => MasterSupplierPage(),
+        '/incoming-raw-material': (context) => Menu2Page(),
+        '/supplier': (context) => Menu3Page(),
+        '/incoming-management': (context) => IncomingManagementPage(),
+        '/master-supplier': (context) => MasterSupplierPage(),
+        '/add-new-incoming': (context) => const AddNewIncomingPage(),
         // '/menu6': (context) => Menu6Page(),
       },
     );
