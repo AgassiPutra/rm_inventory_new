@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -358,7 +358,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode(weightData),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (await Auth.handle401(context, response)) return;
 
@@ -621,7 +621,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode(weightData),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (await Auth.handle401(context, response)) return;
 

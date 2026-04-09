@@ -166,7 +166,7 @@ class BluetoothManagerWeb implements BluetoothManager {
   Future<void> turnOnLed() async {
     if (_ledChar == null) return;
     try {
-      await _ledChar!.writeValueWithResponse(Uint8List.fromList([1]));
+      await _ledChar!.writeValueWithResponse(Uint8List.fromList([1])).timeout(const Duration(milliseconds: 2000));
       print('LED ON');
     } catch (e) {
       print('Gagal nyalakan LED: $e');
@@ -176,7 +176,7 @@ class BluetoothManagerWeb implements BluetoothManager {
   Future<void> turnOffLed() async {
     if (_ledChar == null) return;
     try {
-      await _ledChar!.writeValueWithResponse(Uint8List.fromList([0]));
+      await _ledChar!.writeValueWithResponse(Uint8List.fromList([0])).timeout(const Duration(milliseconds: 2000));
       print('LED OFF');
     } catch (e) {
       print('Gagal matikan LED: $e');

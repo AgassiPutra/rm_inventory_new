@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -344,7 +344,7 @@ class _AddNewIncomingPageState extends State<AddNewIncomingPage> {
     }
 
     try {
-      final response = await request.send();
+      final response = await request.send().timeout(const Duration(seconds: 10));
       final resBody = await response.stream.bytesToString();
 
       if (response.statusCode == 401) {
@@ -459,7 +459,7 @@ class _AddNewIncomingPageState extends State<AddNewIncomingPage> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode(weightData),
-      );
+      ).timeout(const Duration(seconds: 10));
       if (await Auth.handle401(context, response)) {
         setState(() => isReceivingWeight = false);
         return;

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -59,39 +59,85 @@ class SyncService {
     debugPrint('Memulai proses sinkronisasi...');
 
     try {
-      final allItems = await _hiveService.getAllQueueItems();
-      final pendingItems = allItems
-          .where((item) => item.status == 'PENDING')
+      final allItemsPass1 = await _hiveService.getAllQueueItems();
+      final formItems = allItemsPass1
+          .where(
+            (item) =>
+                item.status == 'PENDING' && item.menuType == 'MENU1_FORM_UTAMA',
+          )
           .toList();
 
-      if (pendingItems.isEmpty) {
-        debugPrint('Tidak ada data tertunda.');
-        return;
+      if (formItems.isNotEmpty) {
+        debugPrint(
+          '[Pass 1] Ditemukan ${formItems.length} form utama untuk diunggah.',
+        );
+        for (final item in formItems) {
+          final token = await _getToken();
+          if (token == null) {
+            debugPrint('Token tidak ditemukan. Sinkronisasi ditunda.');
+            return;
+          }
+          final success = await _uploadItem(item, token);
+          if (success) {
+            await _hiveService.deleteQueueItem(item.key);
+            if (!kIsWeb) {
+              for (var path in item.fileContentsBase64) {
+                await FileManager.deleteFile(path);
+              }
+            }
+            debugPrint(
+              '[Pass 1] Form ID ${item.key} berhasil diunggah dan dihapus.',
+            );
+          } else {
+            debugPrint(
+              '[Pass 1] Form ID ${item.key} gagal. Mencoba lagi nanti.',
+            );
+          }
+        }
+      }
+      final allItemsPass2 = await _hiveService.getAllQueueItems();
+      final timbanganItems = allItemsPass2
+          .where(
+            (item) =>
+                item.status == 'PENDING' && item.menuType != 'MENU1_FORM_UTAMA',
+          )
+          .toList();
+
+      if (timbanganItems.isNotEmpty) {
+        debugPrint(
+          '[Pass 2] Ditemukan ${timbanganItems.length} timbangan untuk diunggah.',
+        );
+        for (final item in timbanganItems) {
+          if (item.apiEndpoint.contains('UUID-')) {
+            debugPrint(
+              '[Pass 2] Timbangan ID ${item.key} masih menunggu faktur asli, dilewati.',
+            );
+            continue;
+          }
+
+          final token = await _getToken();
+          if (token == null) {
+            debugPrint('Token tidak ditemukan. Sinkronisasi ditunda.');
+            break;
+          }
+
+          final success = await _uploadItem(item, token);
+          if (success) {
+            await _hiveService.deleteQueueItem(item.key);
+            debugPrint(
+              '[Pass 2] Timbangan ID ${item.key} berhasil diunggah dan dihapus.',
+            );
+          } else {
+            debugPrint(
+              '[Pass 2] Timbangan ID ${item.key} gagal. Mencoba lagi nanti.',
+            );
+            break;
+          }
+        }
       }
 
-      debugPrint('Ditemukan ${pendingItems.length} item untuk diunggah.');
-
-      for (final item in pendingItems) {
-        final token = await _getToken();
-        if (token == null) {
-          debugPrint('Token tidak ditemukan. Sinkronisasi ditunda.');
-          break;
-        }
-
-        final success = await _uploadItem(item, token);
-
-        if (success) {
-          await _hiveService.deleteQueueItem(item.key);
-          if (!kIsWeb) {
-            for (var path in item.fileContentsBase64) {
-              await FileManager.deleteFile(path);
-            }
-          }
-          debugPrint('Item ID ${item.key} berhasil diunggah dan dihapus.');
-        } else {
-          debugPrint('Item ID ${item.key} gagal. Mencoba lagi nanti.');
-          break;
-        }
+      if (formItems.isEmpty && timbanganItems.isEmpty) {
+        debugPrint('Tidak ada data tertunda.');
       }
     } catch (e) {
       debugPrint('Exception saat memproses antrian: $e');
@@ -117,23 +163,17 @@ class SyncService {
   }
 
   Future<bool> _uploadJson(UploadQueue item, String token, Uri uri) async {
-    if (item.menuType == 'MENU1_TIMBANGAN' &&
-        item.apiEndpoint.contains('UUID-')) {
-      debugPrint(
-        'Item timbangan ID ${item.key} menunda, menunggu faktur utama disinkronkan.',
-      );
-      return false;
-    }
-
     try {
-      final response = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: item.requestBodyJson,
-      );
+      final response = await http
+          .post(
+            uri,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: item.requestBodyJson,
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 401) {
         await Auth.clearSession();
@@ -200,7 +240,9 @@ class SyncService {
       }
     }
     try {
-      final response = await request.send();
+      final response = await request.send().timeout(
+        const Duration(seconds: 15),
+      );
 
       if (response.statusCode == 401) {
         await Auth.clearSession();
@@ -217,7 +259,11 @@ class SyncService {
 
             if (fakturAsli != null) {
               debugPrint(
-                'Faktur asli diterima: $fakturAsli. Mencoba sinkronisasi timbangan terkait.',
+                'Faktur asli diterima: $fakturAsli. Memperbarui mapping offline...',
+              );
+              await _hiveService.updateFakturMapping(
+                item.fakturLocalId,
+                fakturAsli,
               );
             }
           } catch (_) {
@@ -239,4 +285,3 @@ class SyncService {
     }
   }
 }
-
