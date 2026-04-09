@@ -16,9 +16,9 @@ class AppRoutes {
   static const String incomingMaterial = '/incoming-material';
   static const String incomingRawMaterial = '/incoming-raw-material';
   static const String supplier = '/supplier';
-  static const String incomingManagement = '/incoming-management';
-  static const String masterSupplier = '/master-supplier';
-  static const String addNewIncoming = '/add-new-incoming';
+  // static const String incomingManagement = '/incoming-management';
+  // static const String masterSupplier = '/master-supplier';
+  // static const String addNewIncoming = '/add-new-incoming';
   // static const String menu6 = '/menu6';
 
   static Map<String, WidgetBuilder> get routes => {
@@ -28,9 +28,9 @@ class AppRoutes {
     incomingMaterial: (context) => Menu1Page(),
     incomingRawMaterial: (context) => Menu2Page(),
     supplier: (context) => Menu3Page(),
-    incomingManagement: (context) => IncomingManagementPage(),
-    masterSupplier: (context) => MasterSupplierPage(),
-    addNewIncoming: (context) => const AddNewIncomingPage(),
+    // incomingManagement: (context) => IncomingManagementPage(),
+    // masterSupplier: (context) => MasterSupplierPage(),
+    // addNewIncoming: (context) => const AddNewIncomingPage(),
     // menu6: (context) => Menu6Page(),
   };
 }
