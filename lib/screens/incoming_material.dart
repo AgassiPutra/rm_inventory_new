@@ -374,7 +374,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+        Uri.parse('http://172.20.100.11:4001/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -460,7 +460,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
+        Uri.parse('http://172.20.100.11:4001/gtsrm/api/supplier'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -527,7 +527,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
       return;
     }
     final apiEndpointFull =
-        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm';
+        'http://172.20.100.11:4001/gtsrm/api/incoming-rm';
     const apiEndpoint = 'gtsrm/api/incoming-rm';
 
     final Map<String, dynamic> requestFields = {
@@ -746,7 +746,7 @@ class _IncomingMaterialPageState extends State<IncomingMaterialPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+        Uri.parse('http://172.20.100.11:4001/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

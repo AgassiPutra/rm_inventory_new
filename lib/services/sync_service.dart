@@ -11,7 +11,7 @@ import '../utils/file_manager.dart';
 import '../utils/auth.dart';
 
 class SyncService {
-  static const String _baseUrl = 'https://api-gts-rm.miegacoan.id/';
+  static const String _baseUrl = 'http://172.20.100.11:4001/';
 
   StreamSubscription? _connectivitySubscription;
   Timer? _retryTimer;

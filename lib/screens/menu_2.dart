@@ -128,7 +128,7 @@ class _Menu2PageState extends State<Menu2Page> {
     }
 
     final url =
-        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?faktur=$faktur';
+        'http://172.20.100.11:4001/gtsrm/api/incoming-rm?faktur=$faktur';
 
     try {
       final response = await http.delete(
@@ -248,7 +248,7 @@ class _Menu2PageState extends State<Menu2Page> {
       }
 
       const String baseUrl =
-          'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm';
+          'http://172.20.100.11:4001/gtsrm/api/incoming-rm';
 
       final Map<String, String> queryParams = {'lokasi_unit': lokasiUnit};
       final String tanggalAwal = apiTanggalAwalController.text.trim();

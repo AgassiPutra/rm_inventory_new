@@ -83,7 +83,7 @@ class _Menu3PageState extends State<Menu3Page> {
 
     try {
       final res = await http.get(
-        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
+        Uri.parse('http://172.20.100.11:4001/gtsrm/api/supplier'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -320,7 +320,7 @@ class _Menu3PageState extends State<Menu3Page> {
                   try {
                     final res = await http.put(
                       Uri.parse(
-                        'https://api-gts-rm.miegacoan.id/gtsrm/api/supplier?kode_supplier=${kodeSupplierC.text.trim()}',
+                        'http://172.20.100.11:4001/gtsrm/api/supplier?kode_supplier=${kodeSupplierC.text.trim()}',
                       ),
 
                       headers: {
@@ -369,7 +369,7 @@ class _Menu3PageState extends State<Menu3Page> {
 
   Future<void> deleteSupplier(BuildContext context, String kodeSupplier) async {
     final url = Uri.parse(
-      'https://api-gts-rm.miegacoan.id/gtsrm/api/supplier?kode_supplier=$kodeSupplier',
+      'http://172.20.100.11:4001/gtsrm/api/supplier?kode_supplier=$kodeSupplier',
     );
     final token = await getToken();
 
@@ -752,7 +752,7 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
 
     try {
       final res = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
+        Uri.parse('http://172.20.100.11:4001/gtsrm/api/supplier'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',

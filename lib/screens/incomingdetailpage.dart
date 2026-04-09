@@ -122,7 +122,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
+      "http://172.20.100.11:4001/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
     );
 
     try {
@@ -350,7 +350,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final response = await http.post(
         Uri.parse(
-          'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$fakturBaru',
+          'http://172.20.100.11:4001/gtsrm/api/timbangan?faktur=$fakturBaru',
         ),
         headers: {
           'Authorization': 'Bearer $token',
@@ -483,7 +483,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
                       final response = await http.put(
                         Uri.parse(
-                          'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?id=$id',
+                          'http://172.20.100.11:4001/gtsrm/api/timbangan?id=$id',
                         ),
                         headers: {
                           'Authorization': 'Bearer $token',
@@ -542,7 +542,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       try {
         final response = await http.delete(
           Uri.parse(
-            'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?id=$id',
+            'http://172.20.100.11:4001/gtsrm/api/timbangan?id=$id',
           ),
           headers: {'Authorization': 'Bearer $token'},
         );
@@ -614,7 +614,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+        Uri.parse('http://172.20.100.11:4001/$apiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -703,7 +703,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm"
+      "http://172.20.100.11:4001/gtsrm/api/incoming-rm"
       "?faktur=$faktur"
       "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
       "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
@@ -768,7 +768,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final uri = Uri.parse(
-        "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
+        "http://172.20.100.11:4001/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
       );
       final request = http.MultipartRequest('PUT', uri);
 
@@ -828,7 +828,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$faktur",
+      "http://172.20.100.11:4001/gtsrm/api/timbangan?faktur=$faktur",
     );
     try {
       final response = await http.get(
@@ -887,7 +887,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
+      "http://172.20.100.11:4001/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
     );
 
     try {
@@ -1692,7 +1692,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
-      final url = Uri.parse("https://api-gts-rm.miegacoan.id/$imagePath");
+      final url = Uri.parse("http://172.20.100.11:4001/$imagePath");
 
       print("Fetching image: $url");
 

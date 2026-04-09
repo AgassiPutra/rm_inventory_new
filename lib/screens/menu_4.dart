@@ -150,7 +150,7 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
     }
 
     final url =
-        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?faktur=$faktur';
+        'http://172.20.100.11:4001/gtsrm/api/incoming-rm?faktur=$faktur';
 
     try {
       final response = await http.delete(
@@ -266,7 +266,7 @@ class _IncomingManagementPageState extends State<IncomingManagementPage> {
           : formatter.format(tomorrow);
 
       final url =
-          'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
+          'http://172.20.100.11:4001/gtsrm/api/incoming-rm?tanggalAwal=$tanggalAwal&tanggalAkhir=$tanggalAkhir';
 
       print('Fetching URL: $url');
 
