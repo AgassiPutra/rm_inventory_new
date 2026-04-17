@@ -363,9 +363,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Data timbangan berhasil dikirim')),
-        );
+        _showSuccessPopup();
       } else {
         throw Exception(jsonDecode(response.body)['message'] ?? 'Gagal kirim');
       }
@@ -626,9 +624,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       if (await Auth.handle401(context, response)) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        _showSnackBar(
-          'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',
-        );
+        _showSuccessPopup();
       } else {
         throw Exception(
           jsonDecode(response.body)['message'] ?? 'Gagal kirim data timbangan',
@@ -692,6 +688,91 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         backgroundColor: isError ? Colors.red : Colors.green,
         duration: const Duration(seconds: 2),
       ),
+    );
+  }
+
+  void _showSuccessPopup() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && Navigator.canPop(dialogContext)) {
+            Navigator.pop(dialogContext);
+          }
+        });
+        
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 24.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Color(0xFFF0FAFE),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 85,
+                      height: 85,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFC0E8F5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Color(0xFF5AB1CE),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 35,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 24),
+                Text(
+                  'Data Saved Successfully',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Your data has been saved successfully!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
