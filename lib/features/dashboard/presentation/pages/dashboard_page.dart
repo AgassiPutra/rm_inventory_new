@@ -106,7 +106,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     const String baseUrl =
-        'http://172.20.100.11:4001/gtsrm/api/incoming-rm';
+        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm';
 
     final Map<String, String> queryParams = {'lokasi_unit': lokasiUnit};
 

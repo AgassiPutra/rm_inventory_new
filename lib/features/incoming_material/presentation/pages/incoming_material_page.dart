@@ -370,14 +370,16 @@ class _Menu1PageState extends State<Menu1Page> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse('http://172.20.100.11:4001/$apiEndpoint'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (await Auth.handle401(context, response)) {
         setState(() => isReceivingWeight = false);
@@ -457,7 +459,7 @@ class _Menu1PageState extends State<Menu1Page> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://172.20.100.11:4001/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -524,7 +526,7 @@ class _Menu1PageState extends State<Menu1Page> {
       return;
     }
     final apiEndpointFull =
-        'http://172.20.100.11:4001/gtsrm/api/incoming-rm';
+        'https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm';
     const apiEndpoint = 'gtsrm/api/incoming-rm';
 
     final Map<String, dynamic> requestFields = {
@@ -594,7 +596,9 @@ class _Menu1PageState extends State<Menu1Page> {
     }
 
     try {
-      final response = await request.send().timeout(const Duration(seconds: 10));
+      final response = await request.send().timeout(
+        const Duration(seconds: 10),
+      );
       final resBody = await response.stream.bytesToString();
 
       if (response.statusCode == 401) {
@@ -742,14 +746,16 @@ class _Menu1PageState extends State<Menu1Page> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse('http://172.20.100.11:4001/$apiEndpoint'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showSnackBar(
           'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',

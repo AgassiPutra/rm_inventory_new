@@ -123,7 +123,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "http://172.20.100.11:4001/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-po?faktur=$faktur",
     );
 
     try {
@@ -349,16 +349,18 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse(
-          'http://172.20.100.11:4001/gtsrm/api/timbangan?faktur=$fakturBaru',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse(
+              'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$fakturBaru',
+            ),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (await Auth.handle401(context, response)) return;
 
@@ -482,7 +484,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
                       final response = await http.put(
                         Uri.parse(
-                          'http://172.20.100.11:4001/gtsrm/api/timbangan?id=$id',
+                          'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?id=$id',
                         ),
                         headers: {
                           'Authorization': 'Bearer $token',
@@ -541,7 +543,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
       try {
         final response = await http.delete(
           Uri.parse(
-            'http://172.20.100.11:4001/gtsrm/api/timbangan?id=$id',
+            'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?id=$id',
           ),
           headers: {'Authorization': 'Bearer $token'},
         );
@@ -612,14 +614,16 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse('http://172.20.100.11:4001/$apiEndpoint'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (await Auth.handle401(context, response)) return;
 
@@ -701,7 +705,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
             Navigator.pop(dialogContext);
           }
         });
-        
+
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -709,7 +713,10 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
           elevation: 0,
           backgroundColor: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 24.0),
+            padding: const EdgeInsets.symmetric(
+              vertical: 32.0,
+              horizontal: 24.0,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -763,10 +770,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                 Text(
                   'Your data has been saved successfully!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF64748B),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -785,7 +789,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final tanggalAkhir = DateTime(now.year, now.month + 1, 0);
 
     final url = Uri.parse(
-      "http://172.20.100.11:4001/gtsrm/api/incoming-rm"
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm"
       "?faktur=$faktur"
       "&tanggalAwal=${tanggalAwal.toIso8601String().split('T').first}"
       "&tanggalAkhir=${tanggalAkhir.toIso8601String().split('T').first}",
@@ -850,7 +854,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
 
     try {
       final uri = Uri.parse(
-        "http://172.20.100.11:4001/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
+        "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/invoice-sj-update?faktur=$faktur",
       );
       final request = http.MultipartRequest('PUT', uri);
 
@@ -910,7 +914,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final url = Uri.parse(
-      "http://172.20.100.11:4001/gtsrm/api/timbangan?faktur=$faktur",
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$faktur",
     );
     try {
       final response = await http.get(
@@ -969,7 +973,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final url = Uri.parse(
-      "http://172.20.100.11:4001/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
+      "https://api-gts-rm.miegacoan.id/gtsrm/api/incoming-rm/qty-losses?faktur=$faktur",
     );
 
     try {
@@ -1774,7 +1778,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
-      final url = Uri.parse("http://172.20.100.11:4001/$imagePath");
+      final url = Uri.parse("https://api-gts-rm.miegacoan.id/$imagePath");
 
       // print("Fetching image: $url");
 
