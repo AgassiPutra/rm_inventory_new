@@ -1283,4 +1283,3 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
     );
   }
 }
-

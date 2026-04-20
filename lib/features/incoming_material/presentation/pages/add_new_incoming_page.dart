@@ -344,7 +344,9 @@ class _AddNewIncomingPageState extends State<AddNewIncomingPage> {
     }
 
     try {
-      final response = await request.send().timeout(const Duration(seconds: 10));
+      final response = await request.send().timeout(
+        const Duration(seconds: 10),
+      );
       final resBody = await response.stream.bytesToString();
 
       if (response.statusCode == 401) {
@@ -460,6 +462,7 @@ class _AddNewIncomingPageState extends State<AddNewIncomingPage> {
         },
         body: jsonEncode(weightData),
       ).timeout(const Duration(seconds: 10));
+
       if (await Auth.handle401(context, response)) {
         setState(() => isReceivingWeight = false);
         return;

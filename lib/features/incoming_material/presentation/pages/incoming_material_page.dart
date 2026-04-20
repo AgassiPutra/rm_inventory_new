@@ -145,6 +145,205 @@ class _Menu1PageState extends State<Menu1Page> {
     'UDANG': ['Udang Fresh', 'Udang Beku'],
   };
 
+  void _showSuccessPopup() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bool isLandscape = screenWidth > screenHeight;
+
+    // Auto-dismiss setelah 2 detik
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    });
+
+    if (isLandscape) {
+      // Mode landscape: tampil full screen
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Success',
+        barrierColor: Colors.black.withOpacity(0.5),
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
+          return GestureDetector(
+            onTap: () => Navigator.pop(dialogContext),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                // Sisakan 72px di bawah agar snackbar tetap terlihat
+                padding: const EdgeInsets.only(bottom: 72),
+                child: Material(
+                  color: const Color(0xFFF0FAFE),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(16),
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Row(
+                      children: [
+                        // Kiri: area centang besar
+                        Expanded(
+                          flex: 1,
+                          child: Container(
+                            color: const Color(0xFFF0FAFE),
+                            child: Center(
+                              child: Container(
+                                width: screenHeight * 0.5,
+                                height: screenHeight * 0.5,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFC0E8F5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: screenHeight * 0.34,
+                                    height: screenHeight * 0.34,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF5AB1CE),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: screenHeight * 0.22,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Kanan: teks
+                        Expanded(
+                          flex: 1,
+                          child: Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.all(40),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Data Saved\nSuccessfully',
+                                  style: TextStyle(
+                                    fontSize: screenHeight * 0.09,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF1E293B),
+                                    height: 1.1,
+                                  ),
+                                ),
+                                SizedBox(height: screenHeight * 0.035),
+                                Text(
+                                  'Your data has been saved successfully!',
+                                  style: TextStyle(
+                                    fontSize: screenHeight * 0.04,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // Mode portrait: dialog card biasa
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext dialogContext) {
+          bool isTablet = MediaQuery.of(dialogContext).size.shortestSide >= 600;
+          double baseSize = isTablet ? screenWidth * 0.3 : screenWidth * 0.4;
+          baseSize = baseSize.clamp(140.0, 280.0);
+          double bannerHeight = baseSize * 0.7;
+
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            child: Container(
+              constraints: BoxConstraints(maxWidth: isTablet ? 480 : 360),
+              padding: EdgeInsets.symmetric(
+                vertical: isTablet ? 40.0 : 32.0,
+                horizontal: isTablet ? 32.0 : 24.0,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: bannerHeight,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FAFE),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: bannerHeight * 0.8,
+                        height: bannerHeight * 0.8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFC0E8F5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: bannerHeight * 0.55,
+                            height: bannerHeight * 0.55,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF5AB1CE),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: bannerHeight * 0.35,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isTablet ? 28 : 20),
+                  Text(
+                    'Data Saved Successfully',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: isTablet ? 26 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1E293B),
+                    ),
+                  ),
+                  SizedBox(height: isTablet ? 12 : 8),
+                  Text(
+                    'Your data has been saved successfully!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: isTablet ? 16 : 13,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+  }
+
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -385,9 +584,7 @@ class _Menu1PageState extends State<Menu1Page> {
       }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        _showSnackBar(
-          'Data timbangan ${weight.toStringAsFixed(2)} kg berhasil dikirim.',
-        );
+        _showSuccessPopup();
       } else {
         throw Exception(
           jsonDecode(response.body)['message'] ?? 'Gagal kirim data timbangan',
@@ -408,12 +605,15 @@ class _Menu1PageState extends State<Menu1Page> {
         token: token,
         createdAt: DateTime.now(),
         method: 'POST',
-        fakturLocalId: lastSubmittedFaktur!,
+        fakturLocalId: lastSubmittedFaktur ?? 'UNKNOWN',
       );
       await hiveService.addItemToQueue(queueItem);
-      _showSnackBar(
-        'Timbangan disimpan lokal. Akan disinkronkan.',
-        isError: true,
+      _showSuccessPopup();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Timbangan disimpan lokal. Akan disinkronkan.'),
+          backgroundColor: Colors.orange,
+        ),
       );
     } finally {
       if (mounted) {
@@ -594,7 +794,9 @@ class _Menu1PageState extends State<Menu1Page> {
     }
 
     try {
-      final response = await request.send().timeout(const Duration(seconds: 10));
+      final response = await request.send().timeout(
+        const Duration(seconds: 10),
+      );
       final resBody = await response.stream.bytesToString();
 
       if (response.statusCode == 401) {
@@ -751,9 +953,7 @@ class _Menu1PageState extends State<Menu1Page> {
         body: jsonEncode(weightData),
       ).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200 || response.statusCode == 201) {
-        _showSnackBar(
-          'Data timbangan ${parsedWeight.toStringAsFixed(2)} kg berhasil dikirim.',
-        );
+        _showSuccessPopup();
       } else {
         throw Exception(
           jsonDecode(response.body)['message'] ?? 'Gagal kirim data timbangan',
@@ -774,12 +974,15 @@ class _Menu1PageState extends State<Menu1Page> {
         token: token,
         createdAt: DateTime.now(),
         method: 'POST',
-        fakturLocalId: lastSubmittedFaktur!,
+        fakturLocalId: lastSubmittedFaktur ?? 'UNKNOWN',
       );
       await hiveService.addItemToQueue(queueItem);
-      _showSnackBar(
-        'Timbangan disimpan lokal. Akan disinkronkan.',
-        isError: true,
+      _showSuccessPopup();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Timbangan disimpan lokal. Akan disinkronkan.'),
+          backgroundColor: Colors.orange,
+        ),
       );
     } finally {
       if (mounted) {
