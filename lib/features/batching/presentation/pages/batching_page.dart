@@ -145,7 +145,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
 
     try {
       final res = await http.get(
-        Uri.parse('http://172.20.100.11:4001/gtsrm/api/supplier'),
+        Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -352,7 +352,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
 
       try {
         final res = await http.post(
-          Uri.parse('http://172.20.100.11:4001/gtsrm/api/supplier'),
+          Uri.parse('https://api-gts-rm.miegacoan.id/gtsrm/api/supplier'),
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/json',
@@ -641,7 +641,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
       try {
         final res = await http.put(
           Uri.parse(
-            'http://172.20.100.11:4001/gtsrm/api/supplier?kode_supplier=${_kodeSupplierC.text.trim()}',
+            'https://api-gts-rm.miegacoan.id/gtsrm/api/supplier?kode_supplier=${_kodeSupplierC.text.trim()}',
           ),
           headers: {
             'Authorization': 'Bearer $token',
@@ -893,7 +893,7 @@ class _MasterSupplierPageState extends State<MasterSupplierPage> {
 
   Future<void> deleteSupplier(BuildContext context, String kodeSupplier) async {
     final url = Uri.parse(
-      'http://172.20.100.11:4001/gtsrm/api/supplier?kode_supplier=$kodeSupplier',
+      'https://api-gts-rm.miegacoan.id/gtsrm/api/supplier?kode_supplier=$kodeSupplier',
     );
     final token = await getToken();
 
