@@ -156,71 +156,89 @@ class _Menu1PageState extends State<Menu1Page> {
           }
         });
 
+        double screenWidth = MediaQuery.of(dialogContext).size.width;
+        double screenHeight = MediaQuery.of(dialogContext).size.height;
+        bool isTablet = MediaQuery.of(dialogContext).size.shortestSide >= 600;
+        bool isLandscape = screenWidth > screenHeight;
+
+        double baseSize = isTablet
+            ? (isLandscape ? screenHeight * 0.35 : screenWidth * 0.3)
+            : screenWidth * 0.4;
+
+        baseSize = baseSize.clamp(140.0, 320.0);
+        double bannerHeight = baseSize * 0.7;
+
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
           ),
           elevation: 0,
           backgroundColor: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.symmetric(
-              vertical: 32.0,
-              horizontal: 24.0,
+            width: isTablet ? (isLandscape ? 600 : 500) : double.infinity,
+            constraints: BoxConstraints(maxWidth: isTablet ? 600 : 380),
+            padding: EdgeInsets.symmetric(
+              vertical: isTablet ? 48.0 : 32.0,
+              horizontal: isTablet ? 32.0 : 24.0,
             ),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 120,
-                  height: 120,
+                  width: double.infinity,
+                  height: bannerHeight,
                   decoration: BoxDecoration(
-                    color: Color(0xFFF0FAFE),
-                    shape: BoxShape.circle,
+                    color: const Color(0xFFF0FAFE),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: Center(
                     child: Container(
-                      width: 85,
-                      height: 85,
-                      decoration: BoxDecoration(
+                      width: bannerHeight * 0.8,
+                      height: bannerHeight * 0.8,
+                      decoration: const BoxDecoration(
                         color: Color(0xFFC0E8F5),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
+                          width: bannerHeight * 0.55,
+                          height: bannerHeight * 0.55,
+                          decoration: const BoxDecoration(
                             color: Color(0xFF5AB1CE),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.check,
                             color: Colors.white,
-                            size: 35,
+                            size: bannerHeight * 0.35,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-                SizedBox(height: 24),
+                SizedBox(height: isTablet ? 32 : 24),
                 Text(
                   'Data Saved Successfully',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: isTablet ? 28 : 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: const Color(0xFF1E293B),
                   ),
                 ),
-                SizedBox(height: 8),
+                SizedBox(height: isTablet ? 16 : 8),
                 Text(
                   'Your data has been saved successfully!',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                    fontSize: isTablet ? 18 : 14,
+                    color: const Color(0xFF64748B),
+                  ),
                 ),
               ],
             ),
@@ -464,7 +482,7 @@ class _Menu1PageState extends State<Menu1Page> {
             },
             body: jsonEncode(weightData),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 3));
 
       if (await Auth.handle401(context, response)) {
         setState(() => isReceivingWeight = false);
@@ -841,7 +859,7 @@ class _Menu1PageState extends State<Menu1Page> {
             },
             body: jsonEncode(weightData),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 3));
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showSuccessPopup();
       } else {
