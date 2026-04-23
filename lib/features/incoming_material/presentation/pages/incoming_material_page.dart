@@ -149,6 +149,7 @@ class _Menu1PageState extends State<Menu1Page> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final bool isLandscape = screenWidth > screenHeight;
+    bool isDialogOpen = true;
 
     if (isLandscape) {
       showGeneralDialog(
@@ -158,13 +159,15 @@ class _Menu1PageState extends State<Menu1Page> {
         barrierColor: Colors.black.withOpacity(0.5),
         pageBuilder: (dialogContext, animation, secondaryAnimation) {
           Future.delayed(const Duration(seconds: 2), () {
-            if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
+            if (isDialogOpen && dialogContext.mounted && Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext);
             }
           });
 
           return GestureDetector(
-            onTap: () => Navigator.pop(dialogContext),
+            onTap: () {
+              if (isDialogOpen) Navigator.pop(dialogContext);
+            },
             child: Align(
               alignment: Alignment.topCenter,
               child: Padding(
@@ -247,14 +250,16 @@ class _Menu1PageState extends State<Menu1Page> {
             ),
           );
         },
-      );
+      ).then((_) {
+        isDialogOpen = false;
+      });
     } else {
       showDialog(
         context: context,
         barrierDismissible: true,
         builder: (BuildContext dialogContext) {
           Future.delayed(const Duration(seconds: 2), () {
-            if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
+            if (isDialogOpen && dialogContext.mounted && Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext);
             }
           });
@@ -265,7 +270,9 @@ class _Menu1PageState extends State<Menu1Page> {
           double bannerHeight = baseSize * 0.7;
 
           return GestureDetector(
-            onTap: () => Navigator.pop(dialogContext),
+            onTap: () {
+              if (isDialogOpen) Navigator.pop(dialogContext);
+            },
             child: Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
@@ -343,7 +350,9 @@ class _Menu1PageState extends State<Menu1Page> {
             ),
           );
         },
-      );
+      ).then((_) {
+        isDialogOpen = false;
+      });
     }
   }
 
