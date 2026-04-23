@@ -349,17 +349,18 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse(
-          'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$fakturBaru',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
-
+      final response = await http
+          .post(
+            Uri.parse(
+              'https://api-gts-rm.miegacoan.id/gtsrm/api/timbangan?faktur=$fakturBaru',
+            ),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (await Auth.handle401(context, response)) return;
 
@@ -613,14 +614,16 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (await Auth.handle401(context, response)) return;
 
@@ -696,28 +699,24 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final bool isLandscape = screenWidth > screenHeight;
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    });
 
     if (isLandscape) {
-      // Mode landscape: tampil full screen
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
         barrierLabel: 'Success',
         barrierColor: Colors.black.withOpacity(0.5),
         pageBuilder: (dialogContext, animation, secondaryAnimation) {
-          // Auto-dismiss menggunakan dialogContext agar tidak mem-pop halaman
-          Future.delayed(const Duration(seconds: 2), () {
-            if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
-              Navigator.pop(dialogContext);
-            }
-          });
-
           return GestureDetector(
             onTap: () => Navigator.pop(dialogContext),
             child: Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                // Sisakan 72px di bawah agar snackbar tetap terlihat
                 padding: const EdgeInsets.only(bottom: 72),
                 child: Material(
                   color: const Color(0xFFF0FAFE),
@@ -728,7 +727,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                     bottom: false,
                     child: Row(
                       children: [
-                        // Kiri: area centang besar
                         Expanded(
                           flex: 1,
                           child: Container(
@@ -760,7 +758,6 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
                             ),
                           ),
                         ),
-                        // Kanan: teks
                         Expanded(
                           flex: 1,
                           child: Container(
@@ -801,98 +798,87 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         },
       );
     } else {
-      // Mode portrait: dialog card biasa
       showDialog(
         context: context,
         barrierDismissible: true,
         builder: (BuildContext dialogContext) {
-          // Auto-dismiss menggunakan dialogContext agar tidak mem-pop halaman
-          Future.delayed(const Duration(seconds: 2), () {
-            if (dialogContext.mounted && Navigator.canPop(dialogContext)) {
-              Navigator.pop(dialogContext);
-            }
-          });
-
           bool isTablet = MediaQuery.of(dialogContext).size.shortestSide >= 600;
           double baseSize = isTablet ? screenWidth * 0.3 : screenWidth * 0.4;
           baseSize = baseSize.clamp(140.0, 280.0);
           double bannerHeight = baseSize * 0.7;
 
-          return GestureDetector(
-            onTap: () => Navigator.pop(dialogContext),
-            child: Dialog(
-              shape: RoundedRectangleBorder(
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            child: Container(
+              constraints: BoxConstraints(maxWidth: isTablet ? 480 : 360),
+              padding: EdgeInsets.symmetric(
+                vertical: isTablet ? 40.0 : 32.0,
+                horizontal: isTablet ? 32.0 : 24.0,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
               ),
-              elevation: 0,
-              backgroundColor: Colors.transparent,
-              child: Container(
-                constraints: BoxConstraints(maxWidth: isTablet ? 480 : 360),
-                padding: EdgeInsets.symmetric(
-                  vertical: isTablet ? 40.0 : 32.0,
-                  horizontal: isTablet ? 32.0 : 24.0,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      height: bannerHeight,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0FAFE),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: bannerHeight * 0.8,
-                          height: bannerHeight * 0.8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFC0E8F5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: bannerHeight * 0.55,
-                              height: bannerHeight * 0.55,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF5AB1CE),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: bannerHeight * 0.35,
-                              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: bannerHeight,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FAFE),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: bannerHeight * 0.8,
+                        height: bannerHeight * 0.8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFC0E8F5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: bannerHeight * 0.55,
+                            height: bannerHeight * 0.55,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF5AB1CE),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: bannerHeight * 0.35,
                             ),
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(height: isTablet ? 28 : 20),
-                    Text(
-                      'Data Saved Successfully',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: isTablet ? 26 : 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1E293B),
-                      ),
+                  ),
+                  SizedBox(height: isTablet ? 28 : 20),
+                  Text(
+                    'Data Saved Successfully',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: isTablet ? 26 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1E293B),
                     ),
-                    SizedBox(height: isTablet ? 12 : 8),
-                    Text(
-                      'Your data has been saved successfully!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: isTablet ? 16 : 13,
-                        color: const Color(0xFF64748B),
-                      ),
+                  ),
+                  SizedBox(height: isTablet ? 12 : 8),
+                  Text(
+                    'Your data has been saved successfully!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: isTablet ? 16 : 13,
+                      color: const Color(0xFF64748B),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );
