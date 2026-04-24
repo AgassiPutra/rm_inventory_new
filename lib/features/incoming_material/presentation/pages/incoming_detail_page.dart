@@ -325,6 +325,9 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
     }
 
     final token = await getToken();
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id') ?? 'guest';
+
     if (token == null || token.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -360,7 +363,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
             },
             body: jsonEncode(weightData),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 3));
 
       if (await Auth.handle401(context, response)) return;
 
@@ -370,9 +373,29 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         throw Exception(jsonDecode(response.body)['message'] ?? 'Gagal kirim');
       }
     } catch (e) {
-      debugPrint("Error submit weight: $e");
+      debugPrint("Error submit weight: $e. Menyimpan ke antrian.");
+
+      final hiveService = HiveService.instance;
+      final queueItem = UploadQueue(
+        userId: userId,
+        apiEndpoint: 'gtsrm/api/timbangan?faktur=$fakturBaru',
+        requestBodyJson: jsonEncode(weightData),
+        fileContentsBase64: const [],
+        status: 'PENDING',
+        menuType: 'MENU1_TIMBANGAN',
+        isMultipart: false,
+        token: token,
+        createdAt: DateTime.now(),
+        method: 'POST',
+        fakturLocalId: fakturBaru,
+      );
+      await hiveService.addItemToQueue(queueItem);
+      _showSuccessPopup();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal kirim: $e'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Timbangan disimpan lokal. Akan disinkronkan.'),
+          backgroundColor: Colors.orange,
+        ),
       );
     } finally {
       if (mounted) {
@@ -623,7 +646,7 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
             },
             body: jsonEncode(weightData),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 3));
 
       if (await Auth.handle401(context, response)) return;
 
@@ -649,12 +672,15 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         token: token,
         createdAt: DateTime.now(),
         method: 'POST',
-        fakturLocalId: lastSubmittedFaktur!,
+        fakturLocalId: fakturBaru,
       );
       await hiveService.addItemToQueue(queueItem);
-      _showSnackBar(
-        'Timbangan disimpan lokal. Akan disinkronkan.',
-        isError: true,
+      _showSuccessPopup();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Timbangan disimpan lokal. Akan disinkronkan.'),
+          backgroundColor: Colors.orange,
+        ),
       );
     } finally {
       if (mounted) {
@@ -709,7 +735,9 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         barrierColor: Colors.black.withOpacity(0.5),
         pageBuilder: (dialogContext, animation, secondaryAnimation) {
           Future.delayed(const Duration(seconds: 2), () {
-            if (isDialogOpen && dialogContext.mounted && Navigator.canPop(dialogContext)) {
+            if (isDialogOpen &&
+                dialogContext.mounted &&
+                Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext);
             }
           });
@@ -808,7 +836,9 @@ class _IncomingDetailPageState extends State<IncomingDetailPage> {
         barrierDismissible: true,
         builder: (BuildContext dialogContext) {
           Future.delayed(const Duration(seconds: 2), () {
-            if (isDialogOpen && dialogContext.mounted && Navigator.canPop(dialogContext)) {
+            if (isDialogOpen &&
+                dialogContext.mounted &&
+                Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext);
             }
           });

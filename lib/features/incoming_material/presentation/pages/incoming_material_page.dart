@@ -159,7 +159,9 @@ class _Menu1PageState extends State<Menu1Page> {
         barrierColor: Colors.black.withOpacity(0.5),
         pageBuilder: (dialogContext, animation, secondaryAnimation) {
           Future.delayed(const Duration(seconds: 2), () {
-            if (isDialogOpen && dialogContext.mounted && Navigator.canPop(dialogContext)) {
+            if (isDialogOpen &&
+                dialogContext.mounted &&
+                Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext);
             }
           });
@@ -259,7 +261,9 @@ class _Menu1PageState extends State<Menu1Page> {
         barrierDismissible: true,
         builder: (BuildContext dialogContext) {
           Future.delayed(const Duration(seconds: 2), () {
-            if (isDialogOpen && dialogContext.mounted && Navigator.canPop(dialogContext)) {
+            if (isDialogOpen &&
+                dialogContext.mounted &&
+                Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext);
             }
           });
@@ -581,14 +585,16 @@ class _Menu1PageState extends State<Menu1Page> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 3));
 
       if (await Auth.handle401(context, response)) {
         setState(() => isReceivingWeight = false);
@@ -956,14 +962,16 @@ class _Menu1PageState extends State<Menu1Page> {
     };
 
     try {
-      final response = await http.post(
-        Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(weightData),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('https://api-gts-rm.miegacoan.id/$apiEndpoint'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(weightData),
+          )
+          .timeout(const Duration(seconds: 3));
       if (response.statusCode == 200 || response.statusCode == 201) {
         _showSuccessPopup();
       } else {
@@ -1283,7 +1291,10 @@ class _Menu1PageState extends State<Menu1Page> {
               SizedBox(height: 24),
               Center(
                 child: ElevatedButton(
-                  onPressed: (!isFormComplete || isSaving || lastSubmittedFaktur != null)
+                  onPressed:
+                      (!isFormComplete ||
+                          isSaving ||
+                          lastSubmittedFaktur != null)
                       ? null
                       : () async {
                           setState(() => isSaving = true);
@@ -1293,7 +1304,10 @@ class _Menu1PageState extends State<Menu1Page> {
                           setState(() => isSaving = false);
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: (!isFormComplete || isSaving || lastSubmittedFaktur != null)
+                    backgroundColor:
+                        (!isFormComplete ||
+                            isSaving ||
+                            lastSubmittedFaktur != null)
                         ? Colors.grey
                         : Colors.green,
                     foregroundColor: Colors.white,
@@ -1308,7 +1322,9 @@ class _Menu1PageState extends State<Menu1Page> {
                             strokeWidth: 2,
                           ),
                         )
-                      : Text(lastSubmittedFaktur != null ? 'Submitted' : 'Submit'),
+                      : Text(
+                          lastSubmittedFaktur != null ? 'Submitted' : 'Submit',
+                        ),
                 ),
               ),
             ],
