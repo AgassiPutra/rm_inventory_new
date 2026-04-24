@@ -99,7 +99,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           const Divider(),
           ListTile(
             title: const Text(
-              'Versi 0.2.21',
+              'Versi 0.2.22',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),
