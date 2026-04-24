@@ -919,6 +919,46 @@ class _AddNewIncomingPageState extends State<AddNewIncomingPage> {
               ).copyWith(filled: true, fillColor: Colors.grey.shade100),
             ),
           ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: (!isFormComplete || isSaving || lastSubmittedFaktur != null)
+                  ? null
+                  : () async {
+                      setState(() => isSaving = true);
+                      await submitData();
+                      setState(() => isSaving = false);
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: (!isFormComplete || isSaving || lastSubmittedFaktur != null)
+                    ? Colors.grey.shade400
+                    : const Color(0xFF4A90D9),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                elevation: 0,
+              ),
+              child: isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      lastSubmittedFaktur != null ? 'Submitted' : 'Submit Form',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
         ],
       ),
     );
@@ -1124,13 +1164,7 @@ class _AddNewIncomingPageState extends State<AddNewIncomingPage> {
               onPressed: isReceivingWeight
                   ? null
                   : () async {
-                      if (lastSubmittedFaktur == null) {
-                        setState(() => isSaving = true);
-                        await submitData();
-                        setState(() => isSaving = false);
-                      } else {
-                        await _saveCurrentWeight();
-                      }
+                      await _saveCurrentWeight();
                     },
               icon: isReceivingWeight
                   ? const SizedBox(

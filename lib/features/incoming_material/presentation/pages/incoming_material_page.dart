@@ -1283,7 +1283,7 @@ class _Menu1PageState extends State<Menu1Page> {
               SizedBox(height: 24),
               Center(
                 child: ElevatedButton(
-                  onPressed: (!isFormComplete || isSaving)
+                  onPressed: (!isFormComplete || isSaving || lastSubmittedFaktur != null)
                       ? null
                       : () async {
                           setState(() => isSaving = true);
@@ -1293,7 +1293,7 @@ class _Menu1PageState extends State<Menu1Page> {
                           setState(() => isSaving = false);
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: (!isFormComplete || isSaving)
+                    backgroundColor: (!isFormComplete || isSaving || lastSubmittedFaktur != null)
                         ? Colors.grey
                         : Colors.green,
                     foregroundColor: Colors.white,
@@ -1308,7 +1308,7 @@ class _Menu1PageState extends State<Menu1Page> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text('Submit'),
+                      : Text(lastSubmittedFaktur != null ? 'Submitted' : 'Submit'),
                 ),
               ),
             ],
